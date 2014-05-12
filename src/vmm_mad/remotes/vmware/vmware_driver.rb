@@ -74,6 +74,17 @@ class VMwareDriver
        @vcenter    = conf[:vcenter]
     end
 
+    def get_uri(options={})
+        host=options[:host] || @host
+
+        if options[:vcenter] ||
+           ( @vcenter and !@vcenter.empty? and @datacenter and !@datacenter.empty? )
+            "vpx://#{@vcenter}/#{@datacenter}/#{host}/?no_verify=1"
+        else
+            @uri
+        end
+    end
+
     # ######################################################################## #
     #                       VMWARE DRIVER ACTIONS                              #
     # ######################################################################## #
@@ -95,7 +106,7 @@ class VMwareDriver
 	   OpenNebula.log_debug("Successfully defined domain #{deploy_id}.")
 
         # Start the VM
-        rc, info = do_action("virsh -c #{@uri} start #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} start #{deploy_id}")
 
         if rc == false
             undefine_domain(deploy_id)
@@ -109,11 +120,11 @@ class VMwareDriver
     # Cancels & undefine the VM                                                #
     # ------------------------------------------------------------------------ #
     def cancel(deploy_id)
-        rc, info = do_action("virsh -c #{@uri} --readonly dominfo #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} --readonly dominfo #{deploy_id}")
 
         if rc
             # Destroy the VM
-            rc, info = do_action("virsh -c #{@uri} destroy #{deploy_id}")
+            rc, info = do_action("virsh -c #{get_uri} destroy #{deploy_id}")
 
             exit info if rc == false
 
@@ -128,7 +139,7 @@ class VMwareDriver
     # Reboots a running VM                                                     #
     # ------------------------------------------------------------------------ #
     def reboot(deploy_id)
-        rc, info = do_action("virsh -c #{@uri} reboot #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} reboot #{deploy_id}")
 
         exit info if rc == false
 
@@ -139,7 +150,7 @@ class VMwareDriver
     # Reset a running VM                                                       #
     # ------------------------------------------------------------------------ #
     def reset(deploy_id)
-        rc, info = do_action("virsh -c #{@uri} reset #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} reset #{deploy_id}")
 
         exit info if rc == false
 
@@ -150,8 +161,8 @@ class VMwareDriver
     # Migrate                                                                  #
     # ------------------------------------------------------------------------ #
     def migrate(deploy_id, dst_host, src_host)
-        src_url  = "vpx://#{@vcenter}/#{@datacenter}/#{src_host}/?no_verify=1"
-        dst_url  = "vpx://#{@vcenter}/#{@datacenter}/#{dst_host}/?no_verify=1"
+        src_url = get_uri(:host => src_host, :vcenter => true)
+        dst_url = get_uri(:host => dst_host, :vcenter => true)
 
         mgr_cmd  = "-r virsh -c #{src_url} migrate #{deploy_id} #{dst_url}"
 
@@ -164,7 +175,7 @@ class VMwareDriver
     # Monitor a VM                                                             #
     # ------------------------------------------------------------------------ #
     def poll(deploy_id)
-        rc, info = do_action("virsh -c #{@uri} --readonly dominfo #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} --readonly dominfo #{deploy_id}")
 
         return "STATE=d" if rc == false
 
@@ -219,13 +230,13 @@ class VMwareDriver
         # [1] $ONE_LOCATION/lib/remotes/vmm/vmware/checkpoint
 
         rc, info = do_action(
-            "virsh -c #{@uri} snapshot-revert #{deploy_id} checkpoint")
+            "virsh -c #{get_uri} snapshot-revert #{deploy_id} checkpoint")
 
         exit info if rc == false
 
         # Delete checkpoint
         rc, info = do_action(
-            "virsh -c #{@uri} snapshot-delete #{deploy_id} checkpoint")
+            "virsh -c #{get_uri} snapshot-delete #{deploy_id} checkpoint")
 
         OpenNebula.log_error("Could not delete snapshot") if rc == false
     end
@@ -236,12 +247,12 @@ class VMwareDriver
     def save(deploy_id)
         # Take a snapshot for the VM
         rc, info = do_action(
-            "virsh -c #{@uri} snapshot-create #{deploy_id} #{CHECKPOINT}")
+            "virsh -c #{get_uri} snapshot-create #{deploy_id} #{CHECKPOINT}")
 
         exit info if rc == false
 
         # Suspend VM
-        rc, info = do_action("virsh -c #{@uri} suspend #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} suspend #{deploy_id}")
 
         exit info if rc == false
 
@@ -253,14 +264,14 @@ class VMwareDriver
     # Shutdown a VM                                                            #
     # ------------------------------------------------------------------------ #
     def shutdown(deploy_id)
-        rc, info = do_action("virsh -c #{@uri} shutdown #{deploy_id}")
+        rc, info = do_action("virsh -c #{get_uri} shutdown #{deploy_id}")
 
         exit info if rc == false
 
         counter = 0
 
         begin
-            rc, info = do_action("virsh -c #{@uri} list")
+            rc, info = do_action("virsh -c #{get_uri} list")
             info     = "" if rc == false
 
             sleep SHUTDOWN_INTERVAL
@@ -282,7 +293,7 @@ class VMwareDriver
     # ------------------------------------------------------------------------ #
     def snapshot_create(deploy_id)
         rc, info = do_action(
-            "virsh -c #{@uri} snapshot-create-as #{deploy_id}")
+            "virsh -c #{get_uri} snapshot-create-as #{deploy_id}")
 
         exit info if rc == false
 
@@ -296,7 +307,7 @@ class VMwareDriver
     # ------------------------------------------------------------------------ #
     def snapshot_delete(deploy_id, snapshot_id)
         rc, info = do_action(
-            "virsh -c #{@uri} snapshot-delete #{deploy_id} #{snapshot_id}")
+            "virsh -c #{get_uri} snapshot-delete #{deploy_id} #{snapshot_id}")
 
         exit info if rc == false
     end
@@ -353,17 +364,10 @@ class VMwareDriver
 
     # Undefines a domain in the ESX hypervisor
     def undefine_domain(id)
-        if @vcenter and !@vcenter.empty? and @datacenter and !@datacenter.empty?
-            undefine_uri = 
-                  "vpx://#{@vcenter}/#{@datacenter}/#{@host}/?no_verify=1"
-        else
-            undefine_uri = @uri
-        end
-
         rc = false
 
         30.times do
-            rc, info = do_action("virsh -c #{undefine_uri} undefine #{id}")
+            rc, info = do_action("virsh -c #{get_uri} undefine #{id}")
             break if rc
             sleep 1
         end
@@ -380,7 +384,7 @@ class VMwareDriver
     #defines a domain in the ESX hypervisor
     def define_domain(dfile)
         deploy_id = nil
-        rc, info  = do_action("virsh -c #{@uri} define #{dfile}")
+        rc, info  = do_action("virsh -c #{get_uri} define #{dfile}")
 
         return nil if rc == false
 
@@ -401,7 +405,7 @@ class VMwareDriver
     end
 
     def domain_defined?(one_id)
-        rc, info  = do_action("virsh -c #{@uri} dominfo one-#{one_id}", false)
+        rc, info  = do_action("virsh -c #{get_uri} dominfo one-#{one_id}", false)
         return rc
     end
 
