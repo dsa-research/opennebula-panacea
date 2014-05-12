@@ -62,7 +62,8 @@ def self.initialize(hostname, monitor = true )
     end
 
     begin
-      @@client = RbVmomi::VIM.connect(:host => hostname,
+      host = conf[:vcenter] || hostname
+      @@client = RbVmomi::VIM.connect(:host => host,
                                       :user => conf[:username],
                                       :password => pass,
                                       :insecure => true)
@@ -135,6 +136,9 @@ class VIVm
         else
             @vm = vm_vi
         end
+
+        @vm_name = vmname
+        @vm_id = vmname.split('-').last
 
         raise "Cannot find VM #{vmname}" if @vm.nil?
     end
@@ -231,6 +235,83 @@ class VIVm
         }
 
         @vm.ReconfigVM_Task(:spec => spec).wait_for_completion
+    end
+
+
+    ########################################################################
+    #  Attach disk
+    ########################################################################
+    def attach_disk(path, device_number)
+        splitted_path=path.split('/')
+        datastore_id=splitted_path[-3]
+        disk_name=splitted_path[-1]
+
+        datastore=VIDriver.host.get_datastore(datastore_id)
+
+        if !datastore
+            STDERR.puts "Can not find datastore '#{datastore_id}'"
+            return -1
+        end
+
+        image_path="[#{datastore_id}] #{@vm_id}/#{disk_name}/disk.vmdk"
+
+        scsi_controller=@vm.config.hardware.device.find do |c|
+            RbVmomi::VIM::VirtualSCSIController===c
+        end
+
+        # Disk Backing
+        backing = RbVmomi::VIM::VirtualDiskFlatVer2BackingInfo(
+            :datastore => datastore,
+            :diskMode => "persistent",
+            :fileName => image_path
+        )
+
+        device = RbVmomi::VIM::VirtualDisk(
+            :backing => backing,
+            :controllerKey => scsi_controller.key,
+            :unitNumber => device_number,
+            :key => -1,
+            :capacityInKB => 0
+        )
+
+        device_spec = RbVmomi::VIM::VirtualDeviceConfigSpec(
+            :operation => RbVmomi::VIM::VirtualDeviceConfigSpecOperation("add"),
+            :device => device
+        )
+
+        spec = RbVmomi::VIM::VirtualMachineConfigSpec(
+            :deviceChange => [device_spec]
+        )
+
+        begin
+            @vm.ReconfigVM_Task(:spec => spec).wait_for_completion
+        rescue RbVmomi::Fault => e
+            STDERR.puts e.message
+            return -1
+        end
+    end
+
+    ########################################################################
+    #  Detach disk
+    ########################################################################
+    def detach_disk(device_number)
+        disk = @vm.disks.find {|d| d.unitNumber.to_s==device_number }
+
+        return -1 if disk.nil?
+
+        spec = {
+            :deviceChange => [
+                :operation => :remove,
+                :device => disk
+            ]
+        }
+
+        begin
+            @vm.ReconfigVM_Task(:spec => spec).wait_for_completion
+        rescue RbVmomi::Fault => e
+            STDERR.puts e.message
+            return -1
+        end
     end
 
     ########################################################################
@@ -439,6 +520,10 @@ class VIHost
 
     def vm
         @host.vm
+    end
+
+    def get_datastore(ds_name)
+        @host.datastore.find {|d| d.name==ds_name }
     end
 end
 
