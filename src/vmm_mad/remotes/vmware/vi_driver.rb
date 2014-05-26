@@ -174,6 +174,45 @@ class VIVm
     end
 
     ########################################################################
+    # Set VM extra config
+    ########################################################################
+    def set_extra_config(extra_config)
+        extra_config.gsub!("\\n", "\n")
+
+        spec=extra_config.split("\n").map do |line|
+            key, value = line.split("=")
+            key.strip!
+            value.strip!
+            value.gsub!(/(^"|"$)/, '')
+
+            { :key => key, :value => value }
+        end
+
+        vmspec = RbVmomi::VIM.VirtualMachineConfigSpec(:extraConfig => spec)
+
+        @vm.ReconfigVM_Task(:spec => vmspec).wait_for_completion
+    end
+
+    ########################################################################
+    # Set VM memory reservation
+    ########################################################################
+    def set_allocated_memory(memory)
+
+        memalloc = RbVmomi::VIM.ResourceAllocationInfo( :reservation => memory )
+
+        spec= [
+            { :key => 'sched.mem.shares', :value => 'normal' },
+            { :key => 'sched.mem.pin', :value => 'TRUE' }
+        ]
+
+        vmspec = RbVmomi::VIM.VirtualMachineConfigSpec(
+            :extraConfig => spec,
+            :memoryAllocation => memalloc )
+
+        @vm.ReconfigVM_Task(:spec => vmspec).wait_for_completion
+    end
+
+    ########################################################################
     #
     ########################################################################
     def attach_nic(bridge, mac, model='default')
@@ -581,3 +620,4 @@ def self.host
 end
 
 end
+
