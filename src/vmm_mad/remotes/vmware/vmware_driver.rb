@@ -420,14 +420,20 @@ class VMwareDriver
         guestos   = REXML::XPath.first(dfile_hash, "/domain/metadata/guestos")
         pcibridge = REXML::XPath.first(dfile_hash, "/domain/metadata/pcibridge")
 
+        VIDriver::initialize(@host, false)
+        vivm = VIDriver::VIVm.new(deploy_id, nil)
+
         if (guestos || pcibridge)
-            VIDriver::initialize(@host, false)
-
-            vivm = VIDriver::VIVm.new(deploy_id, nil)
-
             vivm.set_guestos(guestos.text) if guestos
 
             vivm.set_pcibridge(pcibridge.text) if pcibridge
+        end
+
+        if !@reserve_memory
+            mem_txt = REXML::XPath.first(dfile_hash, "/domain/memory").text
+            mem     = mem_txt.to_i/1024
+
+            vivm.set_allocated_memory(mem)
         end
 
         # Append the raw datavmx to vmx file
@@ -439,34 +445,6 @@ class VMwareDriver
 
         metadata = metadata.text
 
-        # Get the ds_id for system_ds from the first disk
-        disk   = REXML::XPath.first(dfile_hash, "/domain//disk/source")
-        source = disk.attributes['file']
-        ds_id  = source.match(/^\[(.*)\](.*)/)[1]
-
-        name   = REXML::XPath.first(dfile_hash, "/domain/name").text
-        vm_id  = name.match(/^one-(.*)/)[1]
-
-        # Reconstruct path to vmx & add metadata
-        path_to_vmx =  "\$(find /vmfs/volumes/#{ds_id}/#{vm_id}/"
-        path_to_vmx << " -name #{name}.vmx)"
-
-        if !@reserve_memory
-            mem_txt = REXML::XPath.first(dfile_hash, "/domain/memory").text
-            mem     = mem_txt.to_i/1024
-
-            metadata << "\\nsched.mem.min = \"#{mem}\""
-            metadata << "\\nsched.mem.shares = \"normal\""
-            metadata << "\\nsched.mem.pin = \"TRUE\""
-        end
-
-        metadata.gsub!("\\n","\n")
-
-        sed_str = metadata.scan(/^([^ ]+) *=/).join("|")
-
-        cmd_str = "sed -ri \"/^(#{sed_str}) *=.*$/d\" #{path_to_vmx}; "
-        cmd_str << "cat >> #{path_to_vmx}"
-
-        do_ssh_action(cmd_str, metadata)
+        vivm.set_extra_config(metadata)
     end
 end
