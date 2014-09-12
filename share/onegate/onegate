@@ -1,0 +1,328 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'uri'
+require 'net/https'
+require 'json'
+require 'pp'
+
+###############################################################################
+# The CloudClient module contains general functionality to implement a
+# Cloud Client
+###############################################################################
+module CloudClient
+
+    # OpenNebula version
+    VERSION = '4.8.0'
+
+    # #########################################################################
+    # Default location for the authentication file
+    # #########################################################################
+    DEFAULT_AUTH_FILE = ENV["HOME"]+"/.one/one_auth"
+
+    # #########################################################################
+    # Gets authorization credentials from ONE_AUTH or default
+    # auth file.
+    #
+    # Raises an error if authorization is not found
+    # #########################################################################
+    def self.get_one_auth
+        if ENV["ONE_AUTH"] and !ENV["ONE_AUTH"].empty? and
+            File.file?(ENV["ONE_AUTH"])
+            one_auth=File.read(ENV["ONE_AUTH"]).strip.split(':')
+        elsif File.file?(DEFAULT_AUTH_FILE)
+            one_auth=File.read(DEFAULT_AUTH_FILE).strip.split(':')
+        else
+            raise "No authorization data present"
+        end
+
+        raise "Authorization data malformed" if one_auth.length < 2
+
+        one_auth
+    end
+
+    # #########################################################################
+    # Starts an http connection and calls the block provided. SSL flag
+    # is set if needed.
+    # #########################################################################
+    def self.http_start(url, timeout, &block)
+        host = nil
+        port = nil
+
+        if ENV['http_proxy']
+            uri_proxy  = URI.parse(ENV['http_proxy'])
+            host = uri_proxy.host
+            port = uri_proxy.port
+        end
+
+        http = Net::HTTP::Proxy(host, port).new(url.host, url.port)
+
+        if timeout
+            http.read_timeout = timeout.to_i
+        end
+
+        if url.scheme=='https'
+            http.use_ssl = true
+            http.verify_mode=OpenSSL::SSL::VERIFY_NONE
+        end
+
+        begin
+            res = http.start do |connection|
+                block.call(connection)
+            end
+        rescue Errno::ECONNREFUSED => e
+            str =  "Error connecting to server (#{e.to_s}).\n"
+            str << "Server: #{url.host}:#{url.port}"
+
+            return CloudClient::Error.new(str,"503")
+        rescue Errno::ETIMEDOUT => e
+            str =  "Error timeout connecting to server (#{e.to_s}).\n"
+            str << "Server: #{url.host}:#{url.port}"
+
+            return CloudClient::Error.new(str,"504")
+        rescue Timeout::Error => e
+            str =  "Error timeout while connected to server (#{e.to_s}).\n"
+            str << "Server: #{url.host}:#{url.port}"
+
+            return CloudClient::Error.new(str,"504")
+        rescue SocketError => e
+            str =  "Error timeout while connected to server (#{e.to_s}).\n"
+
+            return CloudClient::Error.new(str,"503")
+        rescue
+            return CloudClient::Error.new($!.to_s,"503")
+        end
+
+        if res.is_a?(Net::HTTPSuccess)
+            res
+        else
+            CloudClient::Error.new(res.body, res.code)
+        end
+    end
+
+    # #########################################################################
+    # The Error Class represents a generic error in the Cloud Client
+    # library. It contains a readable representation of the error.
+    # #########################################################################
+    class Error
+        attr_reader :message
+        attr_reader :code
+
+        # +message+ a description of the error
+        def initialize(message=nil, code="500")
+            @message=message
+            @code=code
+        end
+
+        def to_s()
+            @message
+        end
+    end
+
+    # #########################################################################
+    # Returns true if the object returned by a method of the OpenNebula
+    # library is an Error
+    # #########################################################################
+    def self.is_error?(value)
+        value.class==CloudClient::Error
+    end
+end
+
+module OneGate
+    class Client
+        def initialize(opts={})
+            @vmid = ENV["VMID"]
+            @token = `cat /mnt/context/token.txt`
+
+            url = opts[:url] || ENV['ONEGATE_ENDPOINT']
+            @uri = URI.parse(url)
+
+            @user_agent = "OpenNebula #{CloudClient::VERSION} " <<
+                "(#{opts[:user_agent]||"Ruby"})"
+
+            @host = nil
+            @port = nil
+
+            if ENV['http_proxy']
+                uri_proxy  = URI.parse(ENV['http_proxy'])
+                @host = uri_proxy.host
+                @port = uri_proxy.port
+            end
+        end
+
+        def get(path)
+            req = Net::HTTP::Proxy(@host, @port)::Get.new(path)
+
+            do_request(req)
+        end
+
+        def delete(path)
+            req =Net::HTTP::Proxy(@host, @port)::Delete.new(path)
+
+            do_request(req)
+        end
+
+        def post(path, body)
+            req = Net::HTTP::Proxy(@host, @port)::Post.new(path)
+            req.body = body
+
+            do_request(req)
+        end
+
+        def put(path, body)
+            req = Net::HTTP::Proxy(@host, @port)::Put.new(path)
+            req.body = body
+
+            do_request(req)
+        end
+
+        def login
+            req = Net::HTTP::Proxy(@host, @port)::Post.new('/login')
+
+            do_request(req)
+        end
+
+        def logout
+            req = Net::HTTP::Proxy(@host, @port)::Post.new('/logout')
+
+            do_request(req)
+        end
+
+        private
+
+        def do_request(req)
+            req.basic_auth @username, @password
+
+            req['User-Agent'] = @user_agent
+            req['X-ONEGATE-TOKEN'] = @token
+            req['X-ONEGATE-VMID'] = @vmid
+
+            res = CloudClient::http_start(@uri, @timeout) do |http|
+                http.request(req)
+            end
+
+            res
+        end
+    end
+
+    def self.parse_json(response)
+        if CloudClient::is_error?(response)
+            puts "ERROR: "
+            puts response.message
+            exit -1
+        else
+            return JSON.parse(response.body)
+        end
+    end
+
+    # Sets bold font
+    def self.scr_bold
+        print "\33[1m"
+    end
+
+    # Sets underline
+    def self.scr_underline
+        print "\33[4m"
+    end
+
+    # Restore normal font
+    def self.scr_restore
+        print "\33[0m"
+    end
+
+    # Print header
+    def self.print_header(str, underline=true)
+        if $stdout.tty?
+            scr_bold
+            scr_underline if underline
+            print "%-80s" % str
+            scr_restore
+        else
+            print str
+        end
+        puts
+    end
+
+    def self.print_key_value(key, value)
+        puts "%-20s: %-20s" % [key, value]
+    end
+
+    def self.print_vm(json_hash)
+        OneGate.print_header("VM " + json_hash["VM"]["ID"])
+        OneGate.print_key_value("NAME", json_hash["VM"]["NAME"])
+        
+        vm_nics = [json_hash['VM']['TEMPLATE']['NIC']].flatten
+        vm_nics.each { |nic|
+            # TODO: IPv6
+            OneGate.print_key_value("IP", nic["IP"])
+        }
+    end
+
+
+    def self.print_service(json_hash)
+        OneGate.print_header("SERVICE " + json_hash["SERVICE"]["id"])
+        OneGate.print_key_value("NAME", json_hash["SERVICE"]["name"])
+        puts
+
+        roles = [json_hash['SERVICE']['roles']].flatten
+        roles.each { |role|
+            OneGate.print_header("ROLE " + role["name"], false)
+
+            if role["nodes"]
+                role["nodes"].each{ |node|
+                    OneGate.print_vm(node["vm_info"])
+                }
+            end
+
+            puts
+        }
+    end
+end
+
+client = OneGate::Client.new()
+
+case ARGV[0]
+when "vm"
+    case ARGV[1]
+    when "show"
+        if ARGV[2]
+            response = client.get("/vms/"+ARGV[2])
+            json_hash = OneGate.parse_json(response)
+            OneGate.print_vm(json_hash)
+        else
+            response = client.get("/vm")
+            json_hash = OneGate.parse_json(response)
+            OneGate.print_vm(json_hash)
+        end
+    else
+        if ARGV[2]
+            response = client.post("/vms/"+ARGV[2]+"/action", {
+                "action" => {
+                    "perform" => ARGV[1]
+                }
+            }.to_json)
+            if CloudClient::is_error?(response)
+                puts "ERROR: "
+                puts response.message
+                exit -1
+            end
+        else
+            puts "You have to provide a VM ID"
+            exit -1
+        end
+    end
+when "service"
+    case ARGV[1]
+    when "show"
+        response = client.get("/service")
+        json_hash = OneGate.parse_json(response)
+        #pp json_hash
+        OneGate.print_service(json_hash)
+    end
+else
+    puts "Available commands"
+    puts "  $ onegate vm show"
+    puts "  $ onegate service show"
+    exit -1
+end
+
