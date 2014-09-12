@@ -139,6 +139,20 @@ helpers do
 
         service.body
     end
+
+    def parse_json(json_str, root_element)
+        begin
+            hash = JSON.parse(json_str)
+        rescue Exception => e
+            return OpenNebula::Error.new(e.message)
+        end
+
+        if hash.has_key?(root_element)
+            return hash[root_element]
+        else
+            return OpenNebula::Error.new("Error parsing JSON: Wrong resource type")
+        end
+    end
 end
 
 NIC_VALID_KEYS = %w(IP IP6_LINK IP6_SITE IP6_GLOBAL NETWORK MAC)
@@ -335,6 +349,94 @@ get '/vms/:id' do
     response = build_vm_hash(vm.to_hash["VM"])
 
     [200, response.to_json]
+end
+
+post '/vms/:id/action' do
+    client = authenticate(request.env, params)
+
+    halt 401, "Not authorized" if client.nil?
+
+    source_vm_id = request.env['HTTP_X_ONEGATE_VMID'].to_i
+    requested_vm_id = params[:id].to_i
+
+    vm = get_vm(source_vm_id, client)
+
+    service_id = vm['USER_TEMPLATE/SERVICE_ID']
+    service = get_service(service_id, client)
+
+    service_hash = JSON.parse(service)
+
+    response = build_service_hash(service_hash) rescue nil
+
+    if response.nil?
+        error_msg = "VMID:#{source_vm_id} Service #{service_id} is empty."
+        logger.error {error_msg}
+        halt 400, error_msg
+    end
+
+    # Check that the user has not spoofed the Service_ID
+    service_vm_ids = response["SERVICE"]["roles"].collect do |r|
+                        r["nodes"].collect{|n| n["deploy_id"]}
+                     end.flatten rescue []
+
+    if service_vm_ids.empty? || !service_vm_ids.include?(requested_vm_id)
+        error_msg = "VMID:#{requested_vm_id} Service #{service_id} does not contain VM."
+        logger.error {error_msg}
+        halt 400, error_msg
+    end
+
+    vm = get_vm(requested_vm_id, client)
+
+    action_hash = parse_json(request.body.read, 'action')
+    if OpenNebula.is_error?(action_hash)
+        halt 400, rc.to_json
+    end
+
+    rc = case action_hash['perform']
+         when "cancel"       then vm.cancel
+         when "deploy"       then vm.deploy(action_hash['params'])
+         when "finalize"     then vm.finalize
+         when "hold"         then vm.hold
+         when "livemigrate"  then vm.migrate(action_hash['params'], true)
+         when "migrate"      then vm.migrate(action_hash['params'], false)
+         when "resume"       then vm.resume
+         when "release"      then vm.release
+         when "stop"         then vm.stop
+         when "suspend"      then vm.suspend
+         when "restart"      then vm.restart
+         when "reset"        then vm.reset
+         when "saveas"       then vm.save_as(action_hash['params'])
+         when "snapshot_create"       then vm.snapshot_create(action_hash['params'])
+         when "snapshot_revert"       then vm.snapshot_revert(action_hash['params'])
+         when "snapshot_delete"       then vm.snapshot_delete(action_hash['params'])
+         when "shutdown"     then vm.shutdown
+         when "reboot"       then vm.reboot
+         when "poweroff"     then vm.poweroff(action_hash['params'])
+         when "resubmit"     then vm.resubmit
+         when "chown"        then vm.chown(action_hash['params'])
+         when "chmod"        then vm.chmod_octet(action_hash['params'])
+         when "resize"       then vm.resize(action_hash['params'])
+         when "attachdisk"   then vm.disk_attach(action_hash['params'])
+         when "detachdisk"   then vm.disk_detach(action_hash['params'])
+         when "attachnic"    then vm.nic_attach(action_hash['params'])
+         when "detachnic"    then vm.nic_detach(action_hash['params'])
+         when "update"       then vm.update(action_hash['params'])
+         when "rename"       then vm.rename(action_hash['params'])
+         when "undeploy"     then vm.undeploy(action_hash['params'])
+         when "resched"      then vm.resched
+         when "unresched"    then vm.unresched
+         when "recover"      then vm.recover(action_hash['params'])
+         else
+             error_msg = "#{action_hash['perform']} action not " <<
+                 " available for this resource"
+             OpenNebula::Error.new(error_msg)
+         end
+
+     if OpenNebula.is_error?(rc)
+         halt 500, rc.to_json
+     else
+         [204, vm.to_json]
+     end
 end
 
 #############
