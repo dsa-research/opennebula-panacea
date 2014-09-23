@@ -1,5 +1,5 @@
-mkdir /mnt/context
-mount /dev/disk/by-label/CONTEXT /mnt/context/
+#mkdir /mnt/context
+#mount /dev/disk/by-label/CONTEXT /mnt/context/
 
 function export_rc_vars
 {
