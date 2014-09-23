@@ -396,9 +396,8 @@ post '/vms/:id/action' do
     end
 
     rc = case action_hash['perform']
-         when "cancel"       then vm.cancel
          when "deploy"       then vm.deploy(action_hash['params'])
-         when "delete"     then vm.finalize
+         when "delete"       then vm.finalize
          when "hold"         then vm.hold
          when "livemigrate"  then vm.migrate(action_hash['params'], true)
          when "migrate"      then vm.migrate(action_hash['params'], false)
@@ -406,14 +405,12 @@ post '/vms/:id/action' do
          when "release"      then vm.release
          when "stop"         then vm.stop
          when "suspend"      then vm.suspend
-         when "restart"      then vm.restart
-         when "reset"        then vm.reset
          when "saveas"       then vm.save_as(action_hash['params'])
          when "snapshot_create"       then vm.snapshot_create(action_hash['params'])
          when "snapshot_revert"       then vm.snapshot_revert(action_hash['params'])
          when "snapshot_delete"       then vm.snapshot_delete(action_hash['params'])
-         when "shutdown"     then vm.shutdown
-         when "reboot"       then vm.reboot
+         when "shutdown"     then vm.shutdown(action_hash['params'])
+         when "reboot"       then vm.reboot(action_hash['params'])
          when "poweroff"     then vm.poweroff(action_hash['params'])
          when "resubmit"     then vm.resubmit
          when "chown"        then vm.chown(action_hash['params'])
@@ -476,7 +473,7 @@ put '/service/role/:role' do
     end
 
     action_response = flow_client(client).put(
-        "/service/" + service_id + "/role/" + params[:role] + "/action",
+        "/service/" + service_id + "/role/" + params[:role],
         request.body.read)
 
     if CloudClient::is_error?(action_response)

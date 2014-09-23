@@ -198,7 +198,7 @@ module OneGate
                 return LCM_STATE[lcm_id]
             end
 
-            return short_state_str
+            return state_str
         end
 
         def self.print(json_hash)
@@ -392,7 +392,59 @@ module OneGate
     def self.print_key_value(key, value)
         puts "%-20s: %-20s" % [key, value]
     end
+
+    def self.help_str
+        return <<-EOT
+Available commands
+    $ onegate vm show [VMID] [--json]
+    
+    $ onegate vm ACTION VMID
+        $ onegate resume [VMID]
+        $ onegate stop [VMID]
+        $ onegate suspend [VMID]
+        $ onegate delete [VMID] [--hard]
+        $ onegate shutdown [VMID] [--hard]
+        $ onegate reboot [VMID] [--hard]
+        $ onegate poweroff [VMID] [--hard]
+        $ onegate resubmit [VMID]
+        $ onegate resched [VMID]
+        $ onegate unresched [VMID]
+        $ onegate hold [VMID]
+        $ onegate release [VMID]
+
+    $ onegate service show [--json]
+
+    $ onegate service scale --role ROLE --cardinality CARDINALITY
+EOT
+    end
 end
+
+
+require 'optparse'
+
+options = {}
+OptionParser.new do |opts|
+  opts.on("-r", "--role ROLE", "Service role") do |role|
+    options[:role] = role
+  end
+
+  opts.on("-c", "--cardinality CARD", "Service cardinality") do |cardinality|
+    options[:cardinality] = cardinality
+  end
+
+  opts.on("-j", "--json", "Print resource information in JSON") do |json|
+    options[:json] = json
+  end
+
+  opts.on("-f", "--hard", "Hard option for power off operations") do |hard|
+    options[:hard] = hard
+  end
+
+  opts.on("-h", "--help", "Show this message") do
+    puts OneGate.help_str
+    exit
+  end
+end.parse!
 
 client = OneGate::Client.new()
 
@@ -407,14 +459,35 @@ when "vm"
         end
 
         json_hash = OneGate.parse_json(response)
-        OneGate::VirtualMachine.print(json_hash)
-    else
+        if options[:json]
+            puts JSON.pretty_generate(json_hash)
+        else
+            OneGate::VirtualMachine.print(json_hash)
+        end
+    when "resume", 
+         "stop", 
+         "suspend", 
+         "delete", 
+         "shutdown", 
+         "reboot",   
+         "poweroff", 
+         "resubmit", 
+         "resched", 
+         "unresched", 
+         "hold", 
+         "release"        
         if ARGV[2]
-            response = client.post("/vms/"+ARGV[2]+"/action", {
+            action_hash = {
                 "action" => {
                     "perform" => ARGV[1]
                 }
-            }.to_json)
+            }
+
+            if options[:hard]
+                action_hash["action"]["params"] = true
+            end
+
+            response = client.post("/vms/"+ARGV[2]+"/action", action_hash.to_json)
 
             if CloudClient::is_error?(response)
                 puts "ERROR: "
@@ -425,6 +498,11 @@ when "vm"
             puts "You have to provide a VM ID"
             exit -1
         end
+    else
+        puts OneGate.help_str
+        puts
+        puts "Action #{ARGV[1]} not supported"
+        exit -1
     end
 when "service"
     case ARGV[1]
@@ -432,21 +510,12 @@ when "service"
         response = client.get("/service")
         json_hash = OneGate.parse_json(response)
         #pp json_hash
-        OneGate::Service.print(json_hash)
+        if options[:json]
+            puts JSON.pretty_generate(json_hash)
+        else
+            OneGate::Service.print(json_hash)
+        end
     when "scale"
-        require 'optparse'
-
-        options = {}
-        OptionParser.new do |opts|
-          opts.on("-r", "--role ROLE", "Service role") do |role|
-            options[:role] = role
-          end
-
-          opts.on("-c", "--cardinality CARD", "Service role") do |cardinality|
-            options[:cardinality] = cardinality
-          end
-        end.parse!
-
         response = client.put(
             "/service/role/" + options[:role], 
             {
@@ -458,13 +527,14 @@ when "service"
             puts response.message
             exit -1
         end
+    else
+        puts OneGate.help_str
+        puts
+        puts "Action #{ARGV[1]} not supported"
+        exit -1
     end
 else
-    puts "Available commands"
-    puts "  $ onegate vm show [VMID]"
-    puts "  $ onegate vm ACTION VMID"
-    puts "  $ onegate service show"
-    puts "  $ onegate service scale --role ROLE --cardinality CARDINALITY"
+    puts OneGate.help_str
     exit -1
 end
 
