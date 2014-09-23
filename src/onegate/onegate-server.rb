@@ -389,13 +389,13 @@ post '/vms/:id/action' do
 
     action_hash = parse_json(request.body.read, 'action')
     if OpenNebula.is_error?(action_hash)
-        halt 400, rc.to_json
+        halt 400, rc.message
     end
 
     rc = case action_hash['perform']
          when "cancel"       then vm.cancel
          when "deploy"       then vm.deploy(action_hash['params'])
-         when "finalize"     then vm.finalize
+         when "delete"     then vm.finalize
          when "hold"         then vm.hold
          when "livemigrate"  then vm.migrate(action_hash['params'], true)
          when "migrate"      then vm.migrate(action_hash['params'], false)
@@ -433,10 +433,57 @@ post '/vms/:id/action' do
          end
 
      if OpenNebula.is_error?(rc)
-         halt 500, rc.to_json
+         halt 500, rc.message
      else
          [204, vm.to_json]
      end
+end
+
+put '/service/role/:role' do
+    client = authenticate(request.env, params)
+
+    halt 401, "Not authorized" if client.nil?
+
+    vm_id = request.env['HTTP_X_ONEGATE_VMID'].to_i
+
+    vm = get_vm(vm_id, client)
+
+    service_id = vm['USER_TEMPLATE/SERVICE_ID']
+    service = get_service(service_id, client)
+
+    service_hash = JSON.parse(service)
+
+    response = build_service_hash(service_hash) rescue nil
+
+    if response.nil?
+        error_msg = "VMID:#{vm_id} Service #{service_id} is empty."
+        logger.error {error_msg}
+        halt 400, error_msg
+    end
+
+    # Check that the user has not spoofed the Service_ID
+    service_vm_ids = response["SERVICE"]["roles"].collect do |r|
+                        r["nodes"].collect{|n| n["deploy_id"]}
+                     end.flatten rescue []
+
+    if service_vm_ids.empty? || !service_vm_ids.include?(vm_id)
+        error_msg = "VMID:#{vm_id} Service #{service_id} does not contain VM."
+        logger.error {error_msg}
+        halt 400, error_msg
+    end
+
+    action_response = flow_client(client).put(
+        "/service/" + service_id + "/role/" + params[:role] + "/action",
+        request.body.read)
+
+    if CloudClient::is_error?(action_response)
+        error_msg = "Error performing action on service #{service_id} role #{params[:role]}"
+        logger.error {error_msg}
+        logger.error {action_response.message}
+        halt 400, error_msg
+    end
+
+    [200, ""]
 end
 
 #############

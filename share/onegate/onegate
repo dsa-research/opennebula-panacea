@@ -301,6 +301,7 @@ when "vm"
                     "perform" => ARGV[1]
                 }
             }.to_json)
+
             if CloudClient::is_error?(response)
                 puts "ERROR: "
                 puts response.message
@@ -318,11 +319,38 @@ when "service"
         json_hash = OneGate.parse_json(response)
         #pp json_hash
         OneGate.print_service(json_hash)
+    when "scale"
+        require 'optparse'
+
+        options = {}
+        OptionParser.new do |opts|
+          opts.on("-r", "--role ROLE", "Service role") do |role|
+            options[:role] = role
+          end
+
+          opts.on("-c", "--cardinality CARD", "Service role") do |cardinality|
+            options[:cardinality] = cardinality
+          end
+        end.parse!
+
+        response = client.put(
+            "/service/role/" + options[:role], 
+            {
+                :cardinality => options[:cardinality]
+            }.to_json)
+
+        if CloudClient::is_error?(response)
+            puts "ERROR: "
+            puts response.message
+            exit -1
+        end
     end
 else
     puts "Available commands"
-    puts "  $ onegate vm show"
+    puts "  $ onegate vm show [VMID]"
+    puts "  $ onegate vm ACTION VMID"
     puts "  $ onegate service show"
+    puts "  $ onegate service scale --role ROLE --cardinality CARDINALITY"
     exit -1
 end
 
