@@ -129,6 +129,152 @@ module CloudClient
 end
 
 module OneGate
+    module VirtualMachine
+        VM_STATE=%w{INIT PENDING HOLD ACTIVE STOPPED SUSPENDED DONE FAILED
+            POWEROFF UNDEPLOYED}
+
+        LCM_STATE=%w{LCM_INIT PROLOG BOOT RUNNING MIGRATE SAVE_STOP SAVE_SUSPEND
+            SAVE_MIGRATE PROLOG_MIGRATE PROLOG_RESUME EPILOG_STOP EPILOG
+            SHUTDOWN CANCEL FAILURE CLEANUP_RESUBMIT UNKNOWN HOTPLUG SHUTDOWN_POWEROFF
+            BOOT_UNKNOWN BOOT_POWEROFF BOOT_SUSPENDED BOOT_STOPPED CLEANUP_DELETE
+            HOTPLUG_SNAPSHOT HOTPLUG_NIC HOTPLUG_SAVEAS HOTPLUG_SAVEAS_POWEROFF
+            HOTPLUG_SAVEAS_SUSPENDED SHUTDOWN_UNDEPLOY EPILOG_UNDEPLOY
+            PROLOG_UNDEPLOY BOOT_UNDEPLOY}
+
+        SHORT_VM_STATES={
+            "INIT"      => "init",
+            "PENDING"   => "pend",
+            "HOLD"      => "hold",
+            "ACTIVE"    => "actv",
+            "STOPPED"   => "stop",
+            "SUSPENDED" => "susp",
+            "DONE"      => "done",
+            "FAILED"    => "fail",
+            "POWEROFF"  => "poff",
+            "UNDEPLOYED"=> "unde"
+        }
+
+        SHORT_LCM_STATES={
+            "PROLOG"            => "prol",
+            "BOOT"              => "boot",
+            "RUNNING"           => "runn",
+            "MIGRATE"           => "migr",
+            "SAVE_STOP"         => "save",
+            "SAVE_SUSPEND"      => "save",
+            "SAVE_MIGRATE"      => "save",
+            "PROLOG_MIGRATE"    => "migr",
+            "PROLOG_RESUME"     => "prol",
+            "EPILOG_STOP"       => "epil",
+            "EPILOG"            => "epil",
+            "SHUTDOWN"          => "shut",
+            "CANCEL"            => "shut",
+            "FAILURE"           => "fail",
+            "CLEANUP_RESUBMIT"  => "clea",
+            "UNKNOWN"           => "unkn",
+            "HOTPLUG"           => "hotp",
+            "SHUTDOWN_POWEROFF" => "shut",
+            "BOOT_UNKNOWN"      => "boot",
+            "BOOT_POWEROFF"     => "boot",
+            "BOOT_SUSPENDED"    => "boot",
+            "BOOT_STOPPED"      => "boot",
+            "CLEANUP_DELETE"    => "clea",
+            "HOTPLUG_SNAPSHOT"  => "snap",
+            "HOTPLUG_NIC"       => "hotp",
+            "HOTPLUG_SAVEAS"           => "hotp",
+            "HOTPLUG_SAVEAS_POWEROFF"  => "hotp",
+            "HOTPLUG_SAVEAS_SUSPENDED" => "hotp",
+            "SHUTDOWN_UNDEPLOY" => "shut",
+            "EPILOG_UNDEPLOY"   => "epil",
+            "PROLOG_UNDEPLOY"   => "prol",
+            "BOOT_UNDEPLOY"     => "boot"
+        }
+
+        def self.state_to_str(id, lcm_id)
+            id = id.to_i
+            state_str = VM_STATE[id]
+
+            if state_str=="ACTIVE"
+                lcm_id = lcm_id.to_i
+                return LCM_STATE[lcm_id]
+            end
+
+            return short_state_str
+        end
+
+        def self.print(json_hash)
+            OneGate.print_header("VM " + json_hash["VM"]["ID"])
+            OneGate.print_key_value("NAME", json_hash["VM"]["NAME"])
+            OneGate.print_key_value(
+                "STATE", 
+                self.state_to_str(
+                    json_hash["VM"]["STATE"], 
+                    json_hash["VM"]["LCM_STATE"]))
+            
+            vm_nics = [json_hash['VM']['TEMPLATE']['NIC']].flatten
+            vm_nics.each { |nic|
+                # TODO: IPv6
+                OneGate.print_key_value("IP", nic["IP"])
+            }
+        end
+    end
+
+    module Service
+        STATE = {
+            'PENDING'            => 0,
+            'DEPLOYING'          => 1,
+            'RUNNING'            => 2,
+            'UNDEPLOYING'        => 3,
+            'WARNING'            => 4,
+            'DONE'               => 5,
+            'FAILED_UNDEPLOYING' => 6,
+            'FAILED_DEPLOYING'   => 7,
+            'SCALING'            => 8,
+            'FAILED_SCALING'     => 9,
+            'COOLDOWN'           => 10
+        }
+
+        STATE_STR = [
+            'PENDING',
+            'DEPLOYING',
+            'RUNNING',
+            'UNDEPLOYING',
+            'WARNING',
+            'DONE',
+            'FAILED_UNDEPLOYING',
+            'FAILED_DEPLOYING',
+            'SCALING',
+            'FAILED_SCALING',
+            'COOLDOWN'
+        ]
+
+        # Returns the string representation of the service state
+        # @param [String] state String number representing the state
+        # @return the state string
+        def self.state_str(state_number)
+            return STATE_STR[state_number.to_i]
+        end
+
+        def self.print(json_hash)
+            OneGate.print_header("SERVICE " + json_hash["SERVICE"]["id"])
+            OneGate.print_key_value("NAME", json_hash["SERVICE"]["name"])
+            OneGate.print_key_value("STATE", Service.state_str(json_hash["SERVICE"]['state']))
+            puts
+
+            roles = [json_hash['SERVICE']['roles']].flatten
+            roles.each { |role|
+                OneGate.print_header("ROLE " + role["name"], false)
+
+                if role["nodes"]
+                    role["nodes"].each{ |node|
+                        OneGate::VirtualMachine.print(node["vm_info"])
+                    }
+                end
+
+                puts
+            }
+        end
+    end
+
     class Client
         def initialize(opts={})
             @vmid = ENV["VMID"]
@@ -246,37 +392,6 @@ module OneGate
     def self.print_key_value(key, value)
         puts "%-20s: %-20s" % [key, value]
     end
-
-    def self.print_vm(json_hash)
-        OneGate.print_header("VM " + json_hash["VM"]["ID"])
-        OneGate.print_key_value("NAME", json_hash["VM"]["NAME"])
-        
-        vm_nics = [json_hash['VM']['TEMPLATE']['NIC']].flatten
-        vm_nics.each { |nic|
-            # TODO: IPv6
-            OneGate.print_key_value("IP", nic["IP"])
-        }
-    end
-
-
-    def self.print_service(json_hash)
-        OneGate.print_header("SERVICE " + json_hash["SERVICE"]["id"])
-        OneGate.print_key_value("NAME", json_hash["SERVICE"]["name"])
-        puts
-
-        roles = [json_hash['SERVICE']['roles']].flatten
-        roles.each { |role|
-            OneGate.print_header("ROLE " + role["name"], false)
-
-            if role["nodes"]
-                role["nodes"].each{ |node|
-                    OneGate.print_vm(node["vm_info"])
-                }
-            end
-
-            puts
-        }
-    end
 end
 
 client = OneGate::Client.new()
@@ -287,13 +402,12 @@ when "vm"
     when "show"
         if ARGV[2]
             response = client.get("/vms/"+ARGV[2])
-            json_hash = OneGate.parse_json(response)
-            OneGate.print_vm(json_hash)
         else
             response = client.get("/vm")
-            json_hash = OneGate.parse_json(response)
-            OneGate.print_vm(json_hash)
         end
+
+        json_hash = OneGate.parse_json(response)
+        OneGate::VirtualMachine.print(json_hash)
     else
         if ARGV[2]
             response = client.post("/vms/"+ARGV[2]+"/action", {
@@ -318,7 +432,7 @@ when "service"
         response = client.get("/service")
         json_hash = OneGate.parse_json(response)
         #pp json_hash
-        OneGate.print_service(json_hash)
+        OneGate::Service.print(json_hash)
     when "scale"
         require 'optparse'
 

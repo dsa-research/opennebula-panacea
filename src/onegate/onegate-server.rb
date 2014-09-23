@@ -171,6 +171,8 @@ def build_vm_hash(vm_hash)
         "VM" => {
             "NAME"          => vm_hash["NAME"],
             "ID"            => vm_hash["ID"],
+            "STATE"         => vm_hash["STATE"],
+            "LCM_STATE"     => vm_hash["LCM_STATE"],
             "USER_TEMPLATE" => vm_hash["USER_TEMPLATE"].select {|k,v|
                                     !USER_TEMPLATE_INVALID_KEYS.include?(k)
                                 },
@@ -191,6 +193,7 @@ def build_service_hash(service_hash)
     service_info = {
         "name"  => service_hash["DOCUMENT"]["NAME"],
         "id"    => service_hash["DOCUMENT"]["ID"],
+        "state" => service_hash["DOCUMENT"]["TEMPLATE"]["BODY"]["state"],
         "roles" => []
     }
 
