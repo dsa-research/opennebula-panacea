@@ -397,6 +397,8 @@ module OneGate
         return <<-EOT
 Available commands
     $ onegate vm show [VMID] [--json]
+
+    $ onegate vm update [VMID] --data KEY=VALUE[\\nKEY2=VALUE2]
     
     $ onegate vm ACTION VMID
         $ onegate resume [VMID]
@@ -424,6 +426,10 @@ require 'optparse'
 
 options = {}
 OptionParser.new do |opts|
+  opts.on("-d", "--data DATA", "Data to be included in the VM") do |data|
+    options[:data] = data
+  end
+
   opts.on("-r", "--role ROLE", "Service role") do |role|
     options[:role] = role
   end
@@ -463,6 +469,23 @@ when "vm"
             puts JSON.pretty_generate(json_hash)
         else
             OneGate::VirtualMachine.print(json_hash)
+        end
+    when "update"
+        if !options[:data]
+            puts "You have to provide the data as a param (--data)"
+            exit -1
+        end
+
+        if ARGV[2]
+            response = client.put("/vms/"+ARGV[2], options[:data])
+        else
+            response = client.put("/vm", options[:data])
+        end
+
+        if CloudClient::is_error?(response)
+            puts "ERROR: "
+            puts response.message
+            exit -1
         end
     when "resume", 
          "stop", 

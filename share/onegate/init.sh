@@ -1,6 +1,9 @@
 #mkdir /mnt/context
 #mount /dev/disk/by-label/CONTEXT /mnt/context/
 
+cp /mnt/context/onegate /usr/bin
+chmod +x /usr/bin/onegate
+
 function export_rc_vars
 {
 	if [ -f $1 ] ; then

@@ -490,7 +490,7 @@ end
 # DEPRECATED
 #############
 
-put '/vm/:id' do
+put '/vms/:id' do
     client = authenticate(request.env, params)
 
     halt 401, "Not authorized" if client.nil?
