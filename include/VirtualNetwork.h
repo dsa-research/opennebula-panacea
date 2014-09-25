@@ -56,6 +56,14 @@ public:
         return new VirtualNetworkTemplate;
     }
 
+    /**
+     *  Fills a auth class to perform an authZ/authN request based on the object
+     *  attributes. Disables the cluster and all NET rules (NET* and NET/%) for
+     *  reservations.
+     *    @param auths to be filled
+     */
+    void get_permissions(PoolObjectAuth& auths);
+
     // *************************************************************************
     // Address Range management interface
     // *************************************************************************
@@ -344,21 +352,17 @@ public:
     string& to_xml(string& xml) const;
 
     /**
-     * Function to print the object into a string in XML format
-     * base64 encoded
-     *  @param xml64 the resulting XML string
-     *  @param extended return the extended template or the simple one
-     *  @return a reference to the generated string
-     */
-    string& to_xml64(string &xml64, bool extended);
-
-    /**
      * Function to print the VirtualNetwork object into a string in
      * XML format. The extended XML includes the LEASES
      *  @param xml the resulting XML string
+     *  @param vm_ids list of VM the user can access VNET usage info from.
+     *  A vector containing just -1 means all VMs.
+     *  @param vnet_ids list of VNET the user can access reservation info from.
+     *  A vector containing just -1 means all VNETs.
      *  @return a reference to the generated string
      */
-    string& to_xml_extended(string& xml) const;
+    string& to_xml_extended(string& xml, const vector<int>& vms,
+        const vector<int>& vnets) const;
 
     /**
      *  Replace the template of the virtual network it also updates the BRIDGE,
@@ -473,7 +477,8 @@ private:
      *  @param extended If true, leases are included
      *  @return a reference to the generated string
      */
-    string& to_xml_extended(string& xml, bool extended) const;
+    string& to_xml_extended(string& xml, bool extended,
+        const vector<int>& vm_ids, const vector<int>& vnet_oids) const;
 
     /**
      *  Rebuilds the object from an xml formatted string
