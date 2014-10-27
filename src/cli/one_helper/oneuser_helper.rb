@@ -163,7 +163,9 @@ class OneUserHelper < OpenNebulaHelper::OneHelper
         # authentication token for the user
         #-----------------------------------------------------------------------
         token        = auth.login_token(username, options[:time])
-        login_client = OpenNebula::Client.new("#{username}:#{token}")
+        login_client = OpenNebula::Client.new("#{username}:#{token}",
+                                              nil,
+                                              :sync => true)
 
         user = OpenNebula::User.new(User.build_xml, login_client)
 
@@ -357,7 +359,7 @@ class OneUserHelper < OpenNebulaHelper::OneHelper
 
             validity_str = case etime
                 when nil  then ""
-                when "-1" then "not expires"
+                when "-1" then "forever"
                 else "not after #{Time.at(etime.to_i)}"
             end
 

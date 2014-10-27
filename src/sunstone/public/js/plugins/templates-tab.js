@@ -776,24 +776,25 @@ function generate_capacity_tab_content() {
         '<div id="template_name_form"  class="large-6 columns vm_param">'+
           '<label  for="NAME">'+tr("Name")+'\
             <span class="tip">'+tr("Name that the VM will get for description purposes.")+'</span>\
-          </label>'+
-          '<input type="text" id="NAME" name="name" required/>'+
+          <input type="text" id="NAME" name="name" required/></label>'+
+          ''+
         '</div>'+
         '<div  id="template_hypervisor_form" class="large-6 columns">'+
           '<label>'+tr("Hypervisor")+'</label>'+
           '<input type="radio" name="hypervisor" value="kvm" id="kvmRadio"><label for="kvmRadio">'+tr("KVM")+'</label>'+
           '<input type="radio" name="hypervisor" value="vmware" id="vmwareRadio"><label for="vmwareRadio">'+tr("VMware")+'</label>'+
           '<input type="radio" name="hypervisor" value="xen" id="xenRadio"><label for="xenRadio">'+tr("Xen")+'</label>'+
+          '<input type="radio" name="hypervisor" value="vcenter" id="vcenterRadio"><label for="vcenterRadio">'+tr("vCenter")+'</label>'+
         '</div>'+
       '</div>'+
       '<div class="row vm_param">'+
-        '<div class="large-8 columns">'+
+        '<div class="large-6 columns">'+
           '<label  for="DESCRIPTION">'+tr("Description")+'\
             <span class="tip">'+tr("Description of the template")+'</span>\
           </label>'+
           '<textarea type="text" id="DESCRIPTION" name="DESCRIPTION" style="height: 70px;"/>'+
         '</div>'+
-        '<div class="large-4 columns">'+
+        '<div class="large-6 columns">'+
           '<div class="row">'+
             '<div class="large-6 columns">'+
               '<label  for="LOGO">'+tr("Logo")+'\
@@ -816,6 +817,14 @@ function generate_capacity_tab_content() {
             '</div>'+
             '<br>'+
           '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="row hypervisor only_vcenter" style="display: none;">'+
+        '<div class="large-6 columns">'+
+          '<label  for="vcenter_template_uuid">'+tr("vCenter Template UUID")+'\
+            <span class="tip"></span>\
+          </label>'+
+          '<input type="text" id="vcenter_template_uuid" name="name"/>'+
         '</div>'+
       '</div>'+
       '<br>'+
@@ -1068,7 +1077,7 @@ function setup_capacity_inputs(capacity_section) {
     vcpu_slider.val(0);
 }
 
-function generate_disk_tab_content(str_disk_tab_id, str_datatable_id){
+function generate_disk_tab_content(str_disk_tab_id){
   var html = '<div class="row">'+
         '<div class="large-12 columns">'+
           '<input id="'+str_disk_tab_id+'radioImage" type="radio" name="'+str_disk_tab_id+'" value="image" checked> <label for="'+str_disk_tab_id+'radioImage">'+tr("Image")+'</label>'+
@@ -1076,45 +1085,7 @@ function generate_disk_tab_content(str_disk_tab_id, str_datatable_id){
         '</div>'+
       '</div>'+
         '<div id="disk_type" class="vm_param image">'+
-          '<div class="row collapse">'+
-            '<div class="large-8 columns">' +
-               '<button id="refresh_template_images_table_button_class'+str_disk_tab_id+'" type="button" class="refresh button small radius secondary"><i class="fa fa-refresh" /></button>' +
-            '</div>' +
-            '<div class="large-4 columns">'+
-              '<input id="'+str_disk_tab_id+'_search" type="text" class="search" placeholder="'+tr("Search")+'"/>'+
-            '</div>'+
-          '</div>'+
-          '<table id="'+str_datatable_id+'" class="datatable twelve">'+
-            '<thead>'+
-              '<tr>'+
-                '<th></th>'+
-                '<th>'+tr("ID")+'</th>'+
-                '<th>'+tr("Owner")+'</th>'+
-                '<th>'+tr("Group")+'</th>'+
-                '<th>'+tr("Name")+'</th>'+
-                '<th>'+tr("Datastore")+'</th>'+
-                '<th>'+tr("Size")+'</th>'+
-                '<th>'+tr("Type")+'</th>'+
-                '<th>'+tr("Registration time")+'</th>'+
-                '<th>'+tr("Persistent")+'</th>'+
-                '<th>'+tr("Status")+'</th>'+
-                '<th>'+tr("#VMS")+'</th>'+
-                '<th>'+tr("Target")+'</th>'+
-              '</tr>'+
-            '</thead>'+
-            '<tbody id="tbodyimages">'+
-            '</tbody>'+
-          '</table>'+
-          '<br>'+
-          '<div id="selected_image" class="vm_param kvm_opt xen_opt vmware_opt">'+
-            '<span id="select_image" class="radius secondary label">'+tr("Please select an image from the list")+'</span>'+
-            '<span id="image_selected" class="radius secondary label " style="display: none;">'+tr("You selected the following image: ")+
-            '</span>'+
-            '<span class="radius label" type="text" id="IMAGE_NAME" name="image"></span>'+
-            '<div class="alert-box alert" style="display: none;">'+
-            tr("The image you specified cannot be selected in the table") +
-            '</div>'+
-          '</div>'+
+          generateImageTableSelect(str_disk_tab_id)+
           '<br>'+
           generateAdvancedSection({
             title: tr("Advanced Options"),
@@ -1350,11 +1321,6 @@ function generate_disk_tab_content(str_disk_tab_id, str_datatable_id){
           '</div>'})+
     '</div>';
 
-    $("#refresh_template_images_table_button_class"+str_disk_tab_id).die();
-    $("#refresh_template_images_table_button_class"+str_disk_tab_id).live('click', function(){
-        update_datatable_template_images($('table[id='+str_datatable_id+']').dataTable());
-    });
-
     return html;
 }
 
@@ -1402,28 +1368,6 @@ function update_datatable_template_clusters(datatable, fnDrawCallback) {
   });
 }
 
-function update_datatable_template_images(datatable, fnDrawCallback) {
-    if (fnDrawCallback) {
-        datatable.unbind('draw');
-        datatable.on('draw', fnDrawCallback);
-    }
-
-    OpenNebula.Image.list({
-        timeout: true,
-        success: function (request, images_list){
-            var image_list_array = [];
-
-            $.each(images_list,function(){
-              var image_element_array = imageElementArray(this);
-              if (image_element_array)
-                    image_list_array.push(image_element_array);
-            });
-
-            updateView(image_list_array, datatable);
-        }
-    });
-}
-
 function update_datatable_template_files(datatable, fnDrawCallback) {
     if (fnDrawCallback) {
         datatable.unbind('draw');
@@ -1446,30 +1390,7 @@ function update_datatable_template_files(datatable, fnDrawCallback) {
     });
 }
 
-function update_datatable_template_networks(datatable, fnDrawCallback) {
-    if (fnDrawCallback) {
-        datatable.unbind('draw');
-        datatable.on('draw', fnDrawCallback);
-    }
-
-    OpenNebula.Network.list({
-      timeout: true,
-      success: function (request, networks_list){
-          var network_list_array = [];
-
-          $.each(networks_list,function(){
-             network_list_array.push(vNetworkElementArray(this));
-          });
-
-          updateView(network_list_array, datatable);
-      },
-      error: onError
-    });
-}
-
-
-
-function setup_disk_tab_content(disk_section, str_disk_tab_id, str_datatable_id) {
+function setup_disk_tab_content(disk_section, str_disk_tab_id) {
           // Select Image or Volatile disk. The div is hidden depending on the selection, and the
     // vm_param class is included to be computed when the template is generated.
     $("input[name='"+str_disk_tab_id+"']", disk_section).change(function(){
@@ -1583,106 +1504,29 @@ function setup_disk_tab_content(disk_section, str_disk_tab_id, str_datatable_id)
         }
     });
 
-    var dataTable_template_images = $('#'+str_datatable_id, disk_section).dataTable({
-        "iDisplayLength": 4,
-        "bAutoWidth":false,
-        "sDom" : '<"H">t<"F"p>',
-        "aoColumnDefs": [
-            { "sWidth": "35px", "aTargets": [0,1] },
-            { "bVisible": false, "aTargets": [0,2,3,6,9,8,12]}
-        ],
-        "bSortClasses" : false,
-        "bDeferRender": true,
-          "fnDrawCallback": function(oSettings) {
-            var nodes = this.fnGetNodes();
-            var datatable = this;
-            $.each(nodes, function(){
-                var data = datatable.fnGetData(this);
-                if (data[1] == $('#IMAGE_ID', disk_section).val() ||
-                     (data[4] == $('#IMAGE', disk_section).val() && data[2] == $('#IMAGE_UNAME', disk_section).val()) ) {
-                    $("td", this).addClass('markrow');
-                    $('input.check_item', this).attr('checked','checked');
-                }
-            })
-          }
-    });
+    var opts = {
+        select_callback: function(aData, options){
+            // If the image is selected by Id, avoid overwriting it with name+uname
+            if( $('#IMAGE_ID', disk_section).val() != aData[options.id_index] ){
+                $('#IMAGE_ID', disk_section).val("");
+                $('#IMAGE', disk_section).val( aData[options.name_index] );
+                $('#IMAGE_UNAME', disk_section).val( aData[options.uname_index] );
+                $('#IMAGE_UID', disk_section).val("");
+            }
+        }
+    }
 
-    // Retrieve the images to fill the datatable
-    update_datatable_template_images(dataTable_template_images);
+    setupImageTableSelect(disk_section, str_disk_tab_id, opts);
 
-    $('#'+str_disk_tab_id+'_search', disk_section).keyup(function(){
-      dataTable_template_images.fnFilter( $(this).val() );
-    })
-
-    dataTable_template_images.fnSort( [ [1,config['user_config']['table_order']] ] );
-
-    $('#'+str_datatable_id + '  tbody', disk_section).delegate("tr", "click", function(e){
-        dataTable_template_images.unbind("draw");
-        var aData = dataTable_template_images.fnGetData(this);
-
-        $("td.markrow", disk_section).removeClass('markrow');
-        $('tbody input.check_item', dataTable_template_images).removeAttr('checked');
-
-        $('#image_selected', disk_section).show();
-        $('#select_image', disk_section).hide();
-        $('.alert-box', disk_section).hide();
-
-        $("td", this).addClass('markrow');
-        $('input.check_item', this).attr('checked','checked');
-
-        $('#IMAGE_NAME', disk_section).text(aData[4]);
-        $('#IMAGE_ID', disk_section).val("");
-        $('#IMAGE', disk_section).val(aData[4]);
-        $('#IMAGE_UNAME', disk_section).val(aData[2]);
-        $('#IMAGE_UID', disk_section).val("");
-        return true;
-    });
+    refreshImageTableSelect(disk_section, str_disk_tab_id);
 
     setupTips(disk_section);
 }
 
 
-function generate_nic_tab_content(str_nic_tab_id, str_datatable_id){
+function generate_nic_tab_content(str_nic_tab_id){
   var html = '<div class="row">'+
-    '<div class="large-8 columns">' +
-       '<button id="refresh_template_nic_table_button_class'+str_nic_tab_id+'" type="button" class="button small radius secondary refresh"><i class="fa fa-refresh" /></button>' +
-    '</div>' +
-    '<div class="large-4 columns">'+
-      '<input id="'+str_nic_tab_id+'_search" class="search" type="text" placeholder="'+tr("Search")+'"/>'+
-    '</div>'+
-  '</div>'+
-  '<div class="row">'+
-    '<div class="large-12 columns">'+
-      '<table id="'+str_datatable_id+'" class="datatable twelve">'+
-        '<thead>'+
-          '<tr>'+
-            '<th></th>'+
-            '<th>'+tr("ID")+'</th>'+
-            '<th>'+tr("Owner")+'</th>'+
-            '<th>'+tr("Group")+'</th>'+
-            '<th>'+tr("Name")+'</th>'+
-            '<th>'+tr("Reservation")+'</th>'+
-            '<th>'+tr("Cluster")+'</th>'+
-            '<th>'+tr("Bridge")+'</th>'+
-            '<th>'+tr("Leases")+'</th>'+
-            '<th>'+tr("VLAN ID")+'</th>'+
-          '</tr>'+
-        '</thead>'+
-        '<tbody id="tbodynetworks">'+
-        '</tbody>'+
-      '</table>'+
-      '</div>'+
-    '</div>'+
-    '<div id="selected_network" class="vm_param kvm_opt xen_opt vmware_opt row">'+
-      '<div class="large-12 columns">'+
-        '<span id="select_network" class="radius secondary label">'+tr("Please select a network from the list")+'</span>'+
-        '<span id="network_selected" class="radius secondary label" style="display: none;">'+tr("You selected the following network:")+'</span>'+
-        '<span class="radius label" type="text" id="NETWORK_NAME" name="network"></span>'+
-        '<div class="alert-box alert"  style="display: none;">'+
-          tr("The network you specified cannot be selected in the table") +
-        '</div>'+
-      '</div>'+
-    '</div>'+
+    generateVNetTableSelect(str_nic_tab_id)+
     '<br>'+
     generateAdvancedSection({
       title: tr("Advanced Options"),
@@ -1779,12 +1623,6 @@ function generate_nic_tab_content(str_nic_tab_id, str_datatable_id){
         '</div>'+
       '</fieldset>'});
 
-    $("#refresh_template_nic_table_button_class"+str_nic_tab_id).die();
-
-    $("#refresh_template_nic_table_button_class"+str_nic_tab_id).live('click', function(){
-        update_datatable_template_networks($('table[id='+str_datatable_id+']').dataTable());
-    });
-
     return html;
 }
 
@@ -1841,62 +1679,23 @@ function fill_nic_tab_data(template_json, context){
     }
 }
 
-function setup_nic_tab_content(nic_section, str_nic_tab_id, str_datatable_id) {
-    var dataTable_template_networks = $('#'+str_datatable_id, nic_section).dataTable({
-      "bAutoWidth":false,
-      "iDisplayLength": 4,
-      "sDom" : '<"H">t<"F"p>',
-      "bRetrieve": true,
-      "bSortClasses" : false,
-      "bDeferRender": true,
-      "aoColumnDefs": [
-          { "sWidth": "35px", "aTargets": [0,1] },
-          { "bVisible": false, "aTargets": [0,7]}
-        ],
-          "fnDrawCallback": function(oSettings) {
-            var datatable = this;
-            var nodes = this.fnGetNodes();
-            $.each(nodes, function(){
-                var data = datatable.fnGetData(this);
-                if (data[1] == $('#NETWORK_ID', nic_section).val() ||
-                     (data[4] == $('#NETWORK', nic_section).val() && data[2] == $('#NETWORK_UNAME', nic_section).val()) ) {
-                    $("td", this).addClass('markrow');
-                    $('input.check_item', this).attr('checked','checked');
-                }
-            })
-          }
-    });
+function setup_nic_tab_content(nic_section, str_nic_tab_id) {
 
-    // Retrieve the networks to fill the datatable
-    update_datatable_template_networks(dataTable_template_networks);
+    var opts = {
+        select_callback: function(aData, options){
+            // If the net is selected by Id, avoid overwriting it with name+uname
+            if( $('#NETWORK_ID', nic_section).val() != aData[options.id_index] ){
+                $('#NETWORK_ID', nic_section).val("");
+                $('#NETWORK', nic_section).val( aData[options.name_index] );
+                $('#NETWORK_UNAME', nic_section).val( aData[options.uname_index] );
+                $('#NETWORK_UID', nic_section).val("");
+            }
+        }
+    }
 
-    $('#'+str_nic_tab_id+'_search', nic_section).keyup(function(){
-      dataTable_template_networks.fnFilter( $(this).val() );
-    })
+    setupVNetTableSelect(nic_section, str_nic_tab_id, opts);
 
-    dataTable_template_networks.fnSort( [ [1,config['user_config']['table_order']] ] );
-
-    $('#'+str_datatable_id + '  tbody', nic_section).delegate("tr", "click", function(e){
-        dataTable_template_networks.unbind("draw");
-        var aData = dataTable_template_networks.fnGetData(this);
-
-        $("td.markrow", nic_section).removeClass('markrow');
-        $('tbody input.check_item', dataTable_template_networks).removeAttr('checked');
-
-        $('#image_selected', nic_section).show();
-        $('#select_image', nic_section).hide();
-        $('.alert-box', nic_section).hide();
-
-        $("td", this).addClass('markrow');
-        $('input.check_item', this).attr('checked','checked');
-
-        $('#NETWORK_NAME', nic_section).text(aData[4]);
-        $('#NETWORK_ID', nic_section).val("");
-        $('#NETWORK', nic_section).val(aData[4]);
-        $('#NETWORK_UNAME', nic_section).val(aData[2]);
-        $('#NETWORK_UID', nic_section).val("");
-        return true;
-    });
+    refreshVNetTableSelect(nic_section, str_nic_tab_id);
 
     setupTips(nic_section);
 }
@@ -1904,6 +1703,9 @@ function setup_nic_tab_content(nic_section, str_nic_tab_id, str_datatable_id) {
 // Callback to update the information panel tabs and pop it up
 function updateTemplateInfo(request,template){
     var template_info = template.VMTEMPLATE;
+
+    $(".resource-info-header", $("#templates-tab")).html(template_info.NAME);
+
     var info_tab = {
         title : tr("Info"),
         icon: "fa-info-circle",
@@ -2038,15 +1840,15 @@ function wizard_tab_dd(){
     }
 
     if (Config.isTemplateCreationTabEnabled('storage')){
-        str += "<dd><a href='#storageTab'><i class='fa fa-tasks'></i><br>"+tr("Storage")+"</a></dd>";
+        str += "<dd class='hypervisor only_kvm only_vmware only_xen'><a href='#storageTab'><i class='fa fa-tasks'></i><br>"+tr("Storage")+"</a></dd>";
     }
 
     if (Config.isTemplateCreationTabEnabled('network')){
-        str += "<dd><a href='#networkTab'><i class='fa fa-globe'></i><br>"+tr("Network")+"</a></dd>";
+        str += "<dd class='hypervisor only_kvm only_vmware only_xen'><a href='#networkTab'><i class='fa fa-globe'></i><br>"+tr("Network")+"</a></dd>";
     }
 
     if (Config.isTemplateCreationTabEnabled('os_booting')){
-        str += "<dd><a href='#osTab'><i class='fa fa-power-off'></i><br>"+tr("OS Booting")+"</a></dd>";
+        str += "<dd class='hypervisor only_kvm only_vmware only_xen'><a href='#osTab'><i class='fa fa-power-off'></i><br>"+tr("OS Booting")+"</a></dd>";
     }
 
     if (Config.isTemplateCreationTabEnabled('input_output')){
@@ -2054,7 +1856,7 @@ function wizard_tab_dd(){
     }
 
     if (Config.isTemplateCreationTabEnabled('context')){
-        str += "<dd><a href='#contextTab'><i class='fa fa-folder'></i><br>"+tr("Context")+"</a></dd>";
+        str += "<dd class='hypervisor only_kvm only_vmware only_xen'><a href='#contextTab'><i class='fa fa-folder'></i><br>"+tr("Context")+"</a></dd>";
     }
 
     if (Config.isTemplateCreationTabEnabled('scheduling')){
@@ -2101,14 +1903,14 @@ function wizard_tab_content(){
           '</dl>'+
           '<div class="tabs-content vertical" id="template_create_network_tabs_content">'+
           '</div>'+
-          //'<div class="row">'+
-          //  '<div class="large-6 columns">'+
-          //    '<label for="DEFAULT_MODEL">'+tr("Default model")+
-          //      '<span class="tip">'+tr("Default value for all NICs. Hardware that will emulate the network interface. With Xen this is the type attribute of the vif.")+'</span>'+
-          //    '</label>'+
-          //    '<input type="text" id="DEFAULT_MODEL" name="DEFAULT_MODEL"/>'+
-          //  '</div>'+
-          //'</div>'+
+          '<div class="row">'+
+            '<div class="large-6 columns">'+
+              '<label for="DEFAULT_MODEL">'+tr("Default model")+
+                '<span class="tip">'+tr("Default value for all NICs. Hardware that will emulate the network interface. With Xen this is the type attribute of the vif.")+'</span>'+
+              '</label>'+
+              '<input type="text" id="DEFAULT_MODEL" name="DEFAULT_MODEL"/>'+
+            '</div>'+
+          '</div>'+
         '</div>';
     }
     if (Config.isTemplateCreationTabEnabled('os_booting')){
@@ -2542,8 +2344,8 @@ function wizard_tab_content(){
           '<div class="row">'+
             '<div class="large-12 columns text-center">'+
                 '<input type="radio" name="graphics_type" ID="radioVncType" value="VNC"><label for="radioVncType"> VNC  </label>'+
-                '<input type="radio" name="graphics_type" ID="radioSdlType" value="SDL"><label for="radioSdlType"> SDL </label>'+
-                '<input type="radio" name="graphics_type" ID="radioSpiceType" value="SPICE"><label for="radioSpiceType"> SPICE </label>'+
+                '<input type="radio" name="graphics_type" ID="radioSdlType" value="SDL" class="hypervisor only_kvm only_vmware only_xen" ><label class="hypervisor only_kvm only_vmware only_xen"  for="radioSdlType"> SDL </label>'+
+                '<input type="radio" name="graphics_type" ID="radioSpiceType" value="SPICE" class="hypervisor only_kvm only_vmware only_xen" ><label  class="hypervisor only_kvm only_vmware only_xen" for="radioSpiceType"> SPICE </label>'+
             '</div>'+
           '</div>'+
           '<br>'+
@@ -2563,14 +2365,14 @@ function wizard_tab_content(){
               '</label>'+
               '<input type="text" id="PORT" name="port" />'+
             '</div>'+
-            '<div class="large-6 columns">'+
+            '<div class="large-6 columns hypervisor only_kvm only_vmware only_xen">'+
               '<label for="KEYMAP">'+tr("Keymap")+
                 '<span class="tip">'+tr("Keyboard configuration locale to use in the VNC/SPICE display")+'</span>'+
               '</label>'+
               '<input type="text" id="KEYMAP" name="keymap" />'+
             '</div>'+
           '</div>'+
-          '<div class="row vm_param">'+
+          '<div class="row hypervisor only_kvm only_vmware only_xen">'+
             '<div class="large-12 columns">'+
               '<label for="PASSWD">'+tr("Password")+
                 '<span class="tip">'+tr("Password for the VNC/SPICE server")+'</span>'+
@@ -2580,7 +2382,7 @@ function wizard_tab_content(){
           '</div>'+
         '</fieldset>'+
       '</div>'+
-      '<div class="large-6 columns inputs">'+
+      '<div class="large-6 columns inputs hypervisor only_kvm only_vmware only_xen">'+
         '<fieldset>'+
           '<legend>'+tr("Inputs")+'</legend>'+
           '<div class="row">'+
@@ -2905,7 +2707,7 @@ function wizard_tab_content(){
                     '</div>'+
                 '</div>'+
               '</fieldset>'+
-              '<fieldset>'+
+              '<fieldset class="hypervisor only_kvm only_vmware only_xen">'+
                 '<legend>'+tr("Datastore Requirements")+'</legend>'+
                 '<div class="row vm_param">'+
                     '<div class="large-12 columns">'+
@@ -2943,7 +2745,7 @@ function wizard_tab_content(){
                   '</div>'+
                 '</div>'+
               '</fieldset>'+
-              '<fieldset class="ds_rank">'+
+              '<fieldset class="ds_rank hypervisor only_kvm only_vmware only_xen">'+
                 '<legend>'+tr("Datastore Rank")+'</legend>'+
                 '<div class="row">'+
                   '<div class="large-12 columns text-center">'+
@@ -2986,7 +2788,7 @@ function wizard_tab_content(){
     '<div id="rawTab" class="wizard_tab content">'+
       '<div class="row">'+
         '<div class="large-12 columns">'+
-        '<fieldset>'+
+        '<fieldset class="hypervisor only_xen only_kvm only_vmware">'+
           '<legend>'+tr("RAW data")+'</legend>'+
           '<div class="row">'+
             '<div class="large-4 columns">'+
@@ -3093,11 +2895,10 @@ function setup_storage_tab_content(storage_section) {
 
 function add_disk_tab(disk_id, dialog) {
     var str_disk_tab_id  = 'disk' + disk_id;
-    var str_datatable_id = 'datatable_template_images' + disk_id;
 
     // Append the new div containing the tab and add the tab to the list
     var html_tab_content = '<div id="'+str_disk_tab_id+'Tab" class="disk wizard_internal_tab content">'+
-      generate_disk_tab_content(str_disk_tab_id, str_datatable_id) +
+      generate_disk_tab_content(str_disk_tab_id) +
     '</div>'
     $(html_tab_content).appendTo($("#template_create_storage_tabs_content", dialog));
 
@@ -3112,7 +2913,7 @@ function add_disk_tab(disk_id, dialog) {
     $("a", a).trigger("click");
 
     var disk_section = $('#' +str_disk_tab_id+'Tab', dialog);
-    setup_disk_tab_content(disk_section, str_disk_tab_id, str_datatable_id)
+    setup_disk_tab_content(disk_section, str_disk_tab_id)
 }
 
 /**************************************************************************
@@ -3150,10 +2951,9 @@ function setup_network_tab_content(network_section) {
 
 function add_nic_tab(nic_id, dialog) {
   var str_nic_tab_id  = 'nic' + nic_id;
-  var str_datatable_id = 'datatable_template_networks' + nic_id;
 
   var html_tab_content = '<div id="'+str_nic_tab_id+'Tab" class="nic wizard_internal_tab content">'+
-      generate_nic_tab_content(str_nic_tab_id, str_datatable_id) +
+      generate_nic_tab_content(str_nic_tab_id) +
     '</div>'
 
   // Append the new div containing the tab and add the tab to the list
@@ -3168,7 +2968,7 @@ function add_nic_tab(nic_id, dialog) {
   $("a", a).trigger("click");
 
   var nic_section = $('#' + str_nic_tab_id + 'Tab', dialog);
-  setup_nic_tab_content(nic_section, str_nic_tab_id, str_datatable_id)
+  setup_nic_tab_content(nic_section, str_nic_tab_id);
 }
 
 /**************************************************************************
@@ -3960,10 +3760,10 @@ function initialize_create_template_dialog(dialog) {
     //$('button',dialog).button();
 
     //Process form
-    $('#create_template_form_wizard',dialog).on('invalid', function () {
+    $('#create_template_form_wizard',dialog).on('invalid.fndtn.abide', function () {
         notifyError(tr("One or more required fields are missing or malformed."));
         popFormDialog("create_template_form", $("#templates-tab"));
-    }).on('valid', function() {
+    }).on('valid.fndtn.abide', function() {
         if ($('#create_template_form_wizard',dialog).attr("action") == "create") {
           var vm_json = build_template(this);
           vm_json = {vmtemplate: vm_json};
@@ -3981,10 +3781,10 @@ function initialize_create_template_dialog(dialog) {
         }
     });
 
-    $('#create_template_form_advanced',dialog).on('invalid', function () {
+    $('#create_template_form_advanced',dialog).on('invalid.fndtn.abide', function () {
         notifyError(tr("One or more required fields are missing or malformed."));
         popFormDialog("create_template_form", $("#templates-tab"));
-    }).on('valid', function() {
+    }).on('valid.fndtn.abide', function() {
       if ($('#create_template_form_advanced',dialog).attr("action") == "create") {
         var template = $('textarea#template',this).val();
 
@@ -4023,7 +3823,14 @@ function build_template(dialog){
     addSectionJSON(vm_json,$('#capacityTab',dialog));
     vm_json["DESCRIPTION"] = $('#DESCRIPTION',$('#capacityTab',dialog)).val();
     vm_json["LOGO"] = $('#LOGO',$('#capacityTab',dialog)).val();
-    vm_json["HYPERVISOR"] = $('input[name="hypervisor"]:checked', $('#capacityTab',dialog)).val();
+    var hypervisor =  $('input[name="hypervisor"]:checked', $('#capacityTab',dialog)).val();
+    vm_json["HYPERVISOR"] = hypervisor;
+    if (hypervisor == "vcenter") {
+      vm_json["PUBLIC_CLOUD"] = {
+        "TYPE": "vcenter",
+        "VM_TEMPLATE": $("#vcenter_template_uuid", dialog).val()
+      }
+    }
 
     //
     // OS
@@ -4097,7 +3904,10 @@ function build_template(dialog){
 
     // HYBRID
 
-    vm_json["PUBLIC_CLOUD"] = [];
+    if ($.isEmptyObject(vm_json["PUBLIC_CLOUD"])) {
+      vm_json["PUBLIC_CLOUD"] = [];
+    }
+
     vm_json["EC2"] = [];
 
     $('.provider',dialog).each(function(){
@@ -4273,36 +4083,26 @@ var fillTemplatePopUp = function(template, dialog){
             var disk_image_id = disk.IMAGE_ID
             var disk_image = disk.IMAGE
             var disk_image_uname = disk.IMAGE_UNAME
-            // TODO updateView should not be required. Currently the dataTable
-            //  is filled twice.
-            update_datatable_template_images(dataTable_template_images, function(){
-                //dataTable_template_images.unbind('draw');
+            var disk_image_uid = disk.IMAGE_UID
 
-                if (disk_image_id || (disk_image && disk_image_uname)) {
-                    var clicked = false
-                    var data = dataTable_template_images.fnGetData();
-                    $.each(data, function(){
-                        if (this[1] == disk_image_id || (this[2] == disk_image_uname && this[4] == disk_image)) {
-                            clicked = true;
-                            $(".alert-box", disk_section).hide();
-                            $('#image_selected', disk_section).show();
-                            $('#select_image', disk_section).hide();
-                            $('#IMAGE_NAME', disk_section).text(this[4]);
-                            if(disk_image_id) $('#IMAGE_ID', disk_section).val(this[1]);
-                            if(disk_image_uname) $('#IMAGE_UNAME', disk_section).val(this[2]);
-                            if(disk_image) $('#IMAGE', disk_section).val(this[4]);
-                        }
-                    })
+            $('#IMAGE_ID',      disk_section).val( disk_image_id );
+            $('#IMAGE',         disk_section).val( disk_image );
+            $('#IMAGE_UNAME',   disk_section).val( disk_image_uname );
+            $('#IMAGE_UID',     disk_section).val( disk_image_uid );
 
-                    if (!clicked) {
-                        $(".alert-box", disk_section).show();
-                    }
-                } else {
-                    $(".alert-box", disk_section).show();
+            if (disk_image_id != undefined){
+                var opts = {
+                    ids : disk_image_id
                 }
 
-            })
+                selectImageTableSelect(disk_section, str_disk_tab_id, opts);
+            } else if (disk_image != undefined && disk_image_uname != undefined){
+                var opts = {
+                    names : {name: disk_image, uname: disk_image_uname}
+                }
 
+                selectImageTableSelect(disk_section, str_disk_tab_id, opts);
+            }
         }
         else {
             $('input#'+str_disk_tab_id+'radioVolatile', disk_section).click();
@@ -4351,33 +4151,26 @@ var fillTemplatePopUp = function(template, dialog){
         var nic_network_id = nic.NETWORK_ID
         var nic_network = nic.NETWORK
         var nic_network_uname = nic.NETWORK_UNAME
-        // TODO updateView should not be required. Currently the dataTable
-        //  is filled twice.
-        update_datatable_template_networks(dataTable_template_networks, function(){
+        var nic_network_uid = nic.NETWORK_UID
 
-            if (nic_network_id || (nic_network && nic_network_uname)) {
-                var clicked = false
-                var data = dataTable_template_networks.fnGetData();
-                $.each(data, function(){
-                    if (this[1] == nic_network_id || (this[4] == nic_network && this[2] == nic_network_uname)) {
-                        clicked = true;
-                        $('.alert-box', nic_section).hide();
-                        $('#network_selected', nic_section).show();
-                        $('#select_network', nic_section).hide();
-                        $('#NETWORK_NAME', nic_section).text(this[4]);
-                        if (nic_network_id) $('#NETWORK_ID', nic_section).val(this[1]);
-                        if (nic_network) $('#NETWORK', nic_section).val(this[4]);
-                        if (nic_network_uname) $('#NETWORK_UNAME', nic_section).val(this[2]);
-                    }
-                })
+        $('#NETWORK_ID', nic_section).val( nic_network_id );
+        $('#NETWORK', nic_section).val( nic_network );
+        $('#NETWORK_UNAME', nic_section).val( nic_network_uname );
+        $('#NETWORK_UID', nic_section).val( nic_network_uid );
 
-                if (!clicked) {
-                    $('.alert-box', nic_section).show();
-                }
-            } else {
-                $('.alert-box', nic_section).show();
+        if (nic_network_id != undefined){
+            var opts = {
+                ids : nic_network_id
             }
-        })
+
+            selectVNetTableSelect(nic_section, str_nic_tab_id, opts);
+        } else if (nic_network != undefined && nic_network_uname != undefined){
+            var opts = {
+                names : {name: nic_network, uname: nic_network_uname}
+            }
+
+            selectVNetTableSelect(nic_section, str_nic_tab_id, opts);
+        }
 
         autoFillInputs(nic, nic_section);
 
@@ -4418,16 +4211,21 @@ var fillTemplatePopUp = function(template, dialog){
     //
 
     function fillProviderTab(provider, provider_type){
+      if (provider_type == "vcenter") {
+        $("#vcenter_template_uuid", dialog).val(provider["VM_TEMPLATE"])
+      } else {
         if (number_of_providers > 0) {
             $("#tf_btn_hybrid", dialog).trigger("click");
         }
+
+        number_of_providers++;
+      }
 
         var context = $(".provider", dialog).last();
 
         $("input.hybridRadio[value='"+provider_type+"']", context).trigger("click");
 
         autoFillInputs(provider, context);
-        number_of_providers++;
     }
 
     var number_of_providers = 0;
@@ -4441,7 +4239,7 @@ var fillTemplatePopUp = function(template, dialog){
             });
         }
         else if (providers instanceof Object) {
-            fillProviderTab(providers, this.TYPE.toLowerCase());
+            fillProviderTab(providers, providers.TYPE.toLowerCase());
         }
 
         delete template.PUBLIC_CLOUD
@@ -4762,30 +4560,6 @@ var fillTemplatePopUp = function(template, dialog){
             var dataTable_template_hosts = $("#datatable_template_hosts").dataTable();
 
             update_datatable_template_hosts(dataTable_template_hosts, function(){
-//                dataTable_template_hosts.unbind('draw');
-//
-//                var rows = dataTable_template_hosts.fnGetNodes();
-//
-//                for (var j=0;j<rows.length;j++) {
-//                    var current_row = $(rows[j]);
-//                    var row_id = $(rows[j]).find("td:eq(1)").html();
-//
-//                    var in_array = $.inArray(row_id, hosts)
-//                    if (in_array != -1) {
-//                        hosts.splice(in_array, 1);
-//                        // TBD check if all the hosts were clicked
-//                        rows[j].click();
-//                    }
-//                }
-//
-//                if (hosts.length != 0) {
-//                    var alert = '<div class="alert-box alert">'+
-//tr('The following HOSTs: [') + hosts.join(', ') + '] ' + tr(" do not exist any more") +
-//'  <a href="" class="close">&times;</a>'+
-//'</div>';
-//
-//                    $("#datatable_template_hosts_wrapper", req_section).append(alert);
-//                }
             });
         }
 
@@ -4795,30 +4569,6 @@ var fillTemplatePopUp = function(template, dialog){
             var dataTable_template_clusters = $("#datatable_template_clusters").dataTable();
 
             update_datatable_template_clusters(dataTable_template_clusters, function(){
-//               dataTable_template_clusters.unbind('draw');
-
-//               var rows = dataTable_template_clusters.fnGetNodes();
-
-//               for (var j=0;j<rows.length;j++) {
-//                   var current_row = $(rows[j]);
-//                   var row_id = $(rows[j]).find("td:eq(1)").html();
-
-//                   var in_array = $.inArray(row_id, clusters)
-//                   if (in_array != -1) {
-//                       clusters.splice(in_array, 1);
-//                       // TBD check if all the clusters were clicked
-//                       rows[j].click();
-//                   }
-//               }
-
-//               if (clusters.length != 0) {
-//                   var alert = '<div class="alert-box alert">'+
-//r('The following CLUSTERs: [') + clusters.join(', ') + '] ' + tr("do not exist any more") +
-//  <a href="" class="close">&times;</a>'+
-//</div>';
-
-//                   $("#datatable_template_clusters_wrapper", req_section).append(alert);
-//               }
             });
         }
 

@@ -30,6 +30,14 @@ function loadVNC(){
 }
 loadVNC();
 
+function calculate_isHybrid(vm_info){
+    return vm_info.USER_TEMPLATE.HYPERVISOR &&
+       (vm_info.USER_TEMPLATE.HYPERVISOR.toLowerCase() == "vcenter"
+       || vm_info.USER_TEMPLATE.HYPERVISOR.toLowerCase() == "ec2"
+       || vm_info.USER_TEMPLATE.HYPERVISOR.toLowerCase() == "azure"
+       || vm_info.USER_TEMPLATE.HYPERVISOR.toLowerCase() == "softlayer")
+}
+
 var VNCstates=[
   tr("RUNNING"),
   tr("SHUTDOWN"),
@@ -917,7 +925,7 @@ var vms_tab = {
     parentTab: 'vresources-tab',
     search_input: '<input id="vms_search" type="text" placeholder="'+tr("Search")+'" />',
     list_header: '<i class="fa fa-fw fa-th"></i>&emsp;'+tr("Virtual Machines"),
-    info_header: '<i class="fa fa-fw fa-th"></i>&emsp;'+tr("Virtual Machine"),
+    info_header: '<i class="fa fa-fw fa-th"></i>&emsp;'+tr("VM"),
     subheader: '<span class="total_vms"/> <small>'+tr("TOTAL")+'</small>&emsp;\
         <span class="active_vms"/> <small>'+tr("ACTIVE")+'</small>&emsp;\
         <span class="off_vms"/> <small>'+tr("OFF")+'</small>&emsp;\
@@ -967,30 +975,56 @@ function str_start_time(vm){
 
 // Return the IP or several IPs of a VM
 function ip_str(vm){
-    var nic = vm.TEMPLATE.NIC;
 
-    if (nic == undefined){
-        return '--';
+    var isHybrid = calculate_isHybrid(vm);
+
+    if (isHybrid)
+    {
+        switch(vm.USER_TEMPLATE.HYPERVISOR.toLowerCase())
+        {
+            case "vcenter":
+                ip = vm.TEMPLATE.GUEST_IP?vm.TEMPLATE.GUEST_IP:"--";
+                break;
+            case "ec2":
+                ip = vm.TEMPLATE.IP_ADDRESS?vm.TEMPLATE.IP_ADDRESS:"--";
+                break;
+            case "azure":
+                ip = vm.TEMPLATE.IPADDRESS?vm.TEMPLATE.IPADDRESS:"--";
+                break;
+            case "softlayer":
+                ip = vm.TEMPLATE.PRIMARYIPADDRESS?vm.TEMPLATE.PRIMARYIPADDRESS:"--";
+                break;
+            default:
+                ip = "--";
+        }
     }
+    else
+    {
+        var nic = vm.TEMPLATE.NIC;
 
-    if (!$.isArray(nic)){
-        nic = [nic];
+        if (nic == undefined){
+            return '--';
+        }
+
+        if (!$.isArray(nic)){
+            nic = [nic];
+        }
+
+        ip = '';
+        $.each(nic, function(index,value){
+            if (value.IP){
+                ip += value.IP+'<br />';
+            }
+
+            if (value.IP6_GLOBAL){
+                ip += value.IP6_GLOBAL+'<br />';
+            }
+
+            if (value.IP6_ULA){
+                ip += value.IP6_ULA+'<br />';
+            }
+        });
     }
-
-    ip = '';
-    $.each(nic, function(index,value){
-        if (value.IP){
-            ip += value.IP+'<br />';
-        }
-
-        if (value.IP6_GLOBAL){
-            ip += value.IP6_GLOBAL+'<br />';
-        }
-
-        if (value.IP6_ULA){
-            ip += value.IP6_ULA+'<br />';
-        }
-    });
 
     return ip;
 };
@@ -1115,7 +1149,7 @@ function updateVMachinesView(request, vmachine_list){
       tr("REAL CPU USAGE"),
       "40px",
       "14px",
-      {"percentage": usage, "str": (total_real_cpu + " / " + total_allocated_cpu/100)})
+      {"percentage": usage, "str": (total_real_cpu + " / " + total_allocated_cpu)})
     );
 
     usage = 0;
@@ -1307,6 +1341,7 @@ function updateVMInfo(request,vm){
         else
             unshown_values[key]=vm_info.USER_TEMPLATE[key];
 
+    $(".resource-info-header", $("#vms-tab")).html(vm_info.NAME);
 
     var info_tab = {
         title : tr("Info"),
@@ -2054,6 +2089,9 @@ function hotpluggingOps(){
 }
 
 function printNics(vm_info){
+
+   var isHybrid = calculate_isHybrid(vm_info);
+
    var html ='<form id="tab_network_form" vmid="'+vm_info.ID+'" >\
       <div class="row">\
       <div class="large-12 columns">\
@@ -2071,7 +2109,7 @@ function printNics(vm_info){
 
     if (Config.isTabActionEnabled("vms-tab", "VM.attachnic")) {
       // If VM is not RUNNING, then we forget about the attach nic form.
-      if (vm_info.STATE == "3" && vm_info.LCM_STATE == "3"){
+      if (vm_info.STATE == "3" && vm_info.LCM_STATE == "3" && !isHybrid){
         html += '\
            <button id="attach_nic" class="button tiny success right radius" >'+tr("Attach nic")+'</button>'
       } else {
@@ -2087,10 +2125,45 @@ function printNics(vm_info){
 
 
     var nics = []
-    if ($.isArray(vm_info.TEMPLATE.NIC))
-        nics = vm_info.TEMPLATE.NIC
-    else if (!$.isEmptyObject(vm_info.TEMPLATE.NIC))
-        nics = [vm_info.TEMPLATE.NIC]
+
+    if (isHybrid)
+    {
+        nic         = {};
+        nic.NIC_ID  = 0;
+        nic.ATTACH  = "NO";
+        nic.NETWORK = "-";
+        nic.MAC     = "-";
+
+        switch(vm_info.USER_TEMPLATE.HYPERVISOR.toLowerCase())
+        {
+            case "vcenter":
+                nic.IP = vm_info.TEMPLATE.GUEST_IP?vm_info.TEMPLATE.GUEST_IP:"--";
+                break;
+            case "ec2":
+                nic.IP = vm_info.TEMPLATE.IP_ADDRESS?vm_info.TEMPLATE.IP_ADDRESS:"--";
+                break;
+            case "azure":
+                nic.IP = vm_info.TEMPLATE.IPADDRESS?vm_info.TEMPLATE.IPADDRESS:"--";
+                break;
+            case "softlayer":
+                nic.IP = vm_info.TEMPLATE.PRIMARYIPADDRESS?vm_info.TEMPLATE.PRIMARYIPADDRESS:"--";
+                break;
+            default:
+                nic.IP = "--";
+        }
+
+        nics = [nic];
+
+    }
+    else
+    {
+        if ($.isArray(vm_info.TEMPLATE.NIC))
+            nics = vm_info.TEMPLATE.NIC
+        else if (!$.isEmptyObject(vm_info.TEMPLATE.NIC))
+            nics = [vm_info.TEMPLATE.NIC]
+    }
+
+
 
     if (!nics.length){
         html += '\
@@ -2142,7 +2215,11 @@ function printNics(vm_info){
             </tbody>\
           </table>\
         </div>\
-        </div>\
+        </div>';
+
+  if (!isHybrid)
+  {
+    html += '\
         <div class="row">\
             <div class="large-6 columns">\
               <div class="row text-center">\
@@ -2198,6 +2275,7 @@ function printNics(vm_info){
             </div>\
         </div>\
       </form>';
+    }
 
     return html;
 }

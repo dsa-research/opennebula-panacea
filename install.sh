@@ -247,6 +247,7 @@ VAR_DIRS="$VAR_LOCATION/remotes \
           $VAR_LOCATION/remotes/im/xen3-probes.d \
           $VAR_LOCATION/remotes/im/xen4-probes.d \
           $VAR_LOCATION/remotes/im/vmware.d \
+          $VAR_LOCATION/remotes/im/vcenter.d \
           $VAR_LOCATION/remotes/im/ec2.d \
           $VAR_LOCATION/remotes/im/sl.d \
           $VAR_LOCATION/remotes/im/az.d \
@@ -255,6 +256,7 @@ VAR_DIRS="$VAR_LOCATION/remotes \
           $VAR_LOCATION/remotes/vmm/xen3 \
           $VAR_LOCATION/remotes/vmm/xen4 \
           $VAR_LOCATION/remotes/vmm/vmware \
+          $VAR_LOCATION/remotes/vmm/vcenter \
           $VAR_LOCATION/remotes/vmm/ec2 \
           $VAR_LOCATION/remotes/vmm/sl \
           $VAR_LOCATION/remotes/vmm/az \
@@ -324,7 +326,6 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/locale/zh_CN \
                $SUNSTONE_LOCATION/public/vendor \
                $SUNSTONE_LOCATION/public/vendor/crypto-js \
-               $SUNSTONE_LOCATION/public/vendor/fileuploader \
                $SUNSTONE_LOCATION/public/vendor/noVNC \
                $SUNSTONE_LOCATION/public/vendor/noVNC/web-socket-js \
                $SUNSTONE_LOCATION/public/vendor/4.0 \
@@ -336,6 +337,7 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/vendor/4.0/fontawesome/css \
                $SUNSTONE_LOCATION/public/vendor/4.0/fontawesome/fonts \
                $SUNSTONE_LOCATION/public/vendor/4.0/jgrowl \
+               $SUNSTONE_LOCATION/public/vendor/4.0/resumablejs \
                $SUNSTONE_LOCATION/public/vendor/4.0/foundation \
                $SUNSTONE_LOCATION/public/vendor/4.0/modernizr \
                $SUNSTONE_LOCATION/public/vendor/4.0/nouislider \
@@ -407,6 +409,7 @@ INSTALL_FILES=(
     IM_PROBES_XEN4_FILES:$VAR_LOCATION/remotes/im/xen4.d
     IM_PROBES_XEN4_PROBES_FILES:$VAR_LOCATION/remotes/im/xen4-probes.d
     IM_PROBES_VMWARE_FILES:$VAR_LOCATION/remotes/im/vmware.d
+    IM_PROBES_VCENTER_FILES:$VAR_LOCATION/remotes/im/vcenter.d
     IM_PROBES_EC2_FILES:$VAR_LOCATION/remotes/im/ec2.d
     IM_PROBES_SL_FILES:$VAR_LOCATION/remotes/im/sl.d
     IM_PROBES_AZ_FILES:$VAR_LOCATION/remotes/im/az.d
@@ -422,6 +425,7 @@ INSTALL_FILES=(
     VMM_EXEC_XEN3_SCRIPTS:$VAR_LOCATION/remotes/vmm/xen3
     VMM_EXEC_XEN4_SCRIPTS:$VAR_LOCATION/remotes/vmm/xen4
     VMM_EXEC_VMWARE_SCRIPTS:$VAR_LOCATION/remotes/vmm/vmware
+    VMM_EXEC_VCENTER_SCRIPTS:$VAR_LOCATION/remotes/vmm/vcenter
     VMM_EXEC_EC2_SCRIPTS:$VAR_LOCATION/remotes/vmm/ec2
     VMM_EXEC_SL_SCRIPTS:$VAR_LOCATION/remotes/vmm/sl
     VMM_EXEC_AZ_SCRIPTS:$VAR_LOCATION/remotes/vmm/az
@@ -503,13 +507,13 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_ROUTES_FILES:$SUNSTONE_LOCATION/routes
     SUNSTONE_PUBLIC_CSS_FILES:$SUNSTONE_LOCATION/public/css
     SUNSTONE_PUBLIC_VENDOR_CRYPTOJS:$SUNSTONE_LOCATION/public/vendor/crypto-js
-    SUNSTONE_PUBLIC_VENDOR_FILEUPLOADER:$SUNSTONE_LOCATION/public/vendor/fileuploader
     SUNSTONE_PUBLIC_VENDOR_NOVNC:$SUNSTONE_LOCATION/public/vendor/noVNC
     SUNSTONE_PUBLIC_VENDOR_NOVNC_WEBSOCKET:$SUNSTONE_LOCATION/public/vendor/noVNC/web-socket-js
     SUNSTONE_PUBLIC_NEW_VENDOR_FLOT:$SUNSTONE_LOCATION/public/vendor/4.0/flot
     SUNSTONE_PUBLIC_NEW_VENDOR_DATATABLES:$SUNSTONE_LOCATION/public/vendor/4.0/datatables
     SUNSTONE_PUBLIC_NEW_VENDOR_FOUNDATION_DATATABLES:$SUNSTONE_LOCATION/public/vendor/4.0/foundation_datatables
     SUNSTONE_PUBLIC_NEW_VENDOR_JGROWL:$SUNSTONE_LOCATION/public/vendor/4.0/jgrowl
+    SUNSTONE_PUBLIC_NEW_VENDOR_RESUMABLEJS:$SUNSTONE_LOCATION/public/vendor/4.0/resumablejs
     SUNSTONE_PUBLIC_NEW_VENDOR_JQUERY:$SUNSTONE_LOCATION/public/vendor/4.0/
     SUNSTONE_PUBLIC_NEW_VENDOR_FOUNDATION:$SUNSTONE_LOCATION/public/vendor/4.0/foundation
     SUNSTONE_PUBLIC_NEW_VENDOR_MODERNIZR:$SUNSTONE_LOCATION/public/vendor/4.0/modernizr
@@ -599,6 +603,7 @@ BIN_FILES="src/nebula/oned \
            src/cli/onezone \
            src/cli/oneflow \
            src/cli/oneflow-template \
+           src/cli/onevcenter \
            src/onedb/onedb \
            src/mad/utils/tty_expect \
            share/scripts/one"
@@ -705,7 +710,7 @@ VMM_EXEC_XEN3_SCRIPTS="src/vmm_mad/remotes/xen/cancel \
                     src/vmm_mad/remotes/xen/xen3/migrate \
                     src/vmm_mad/remotes/xen/restore \
                     src/vmm_mad/remotes/xen/reboot \
-                    src/vmm_mad/remotes/xen/reset \
+                    src/vmm_mad/remotes/xen/xen3/reset \
                     src/vmm_mad/remotes/xen/save \
                     src/vmm_mad/remotes/xen/poll \
                     src/vmm_mad/remotes/xen/attach_disk \
@@ -723,7 +728,7 @@ VMM_EXEC_XEN4_SCRIPTS="src/vmm_mad/remotes/xen/cancel \
                     src/vmm_mad/remotes/xen/xen4/migrate \
                     src/vmm_mad/remotes/xen/restore \
                     src/vmm_mad/remotes/xen/reboot \
-                    src/vmm_mad/remotes/xen/reset \
+                    src/vmm_mad/remotes/xen/xen4/reset \
                     src/vmm_mad/remotes/xen/save \
                     src/vmm_mad/remotes/xen/poll \
                     src/vmm_mad/remotes/xen/attach_disk \
@@ -758,6 +763,28 @@ VMM_EXEC_VMWARE_SCRIPTS="src/vmm_mad/remotes/vmware/cancel \
                          src/vmm_mad/remotes/vmware/shutdown \
                          src/vmm_mad/remotes/vmware/vmware_driver.rb \
                          src/vmm_mad/remotes/vmware/vi_driver.rb"
+
+#-------------------------------------------------------------------------------
+# VMM Driver vCenter scripts, installed under $REMOTES_LOCATION/vmm/vcenter
+#-------------------------------------------------------------------------------
+
+VMM_EXEC_VCENTER_SCRIPTS="src/vmm_mad/remotes/vcenter/cancel \
+                         src/vmm_mad/remotes/vcenter/attach_disk \
+                         src/vmm_mad/remotes/vcenter/detach_disk \
+                         src/vmm_mad/remotes/vcenter/attach_nic \
+                         src/vmm_mad/remotes/vcenter/detach_nic \
+                         src/vmm_mad/remotes/vcenter/snapshot_create \
+                         src/vmm_mad/remotes/vcenter/snapshot_revert \
+                         src/vmm_mad/remotes/vcenter/snapshot_delete \
+                         src/vmm_mad/remotes/vcenter/deploy \
+                         src/vmm_mad/remotes/vcenter/migrate \
+                         src/vmm_mad/remotes/vcenter/restore \
+                         src/vmm_mad/remotes/vcenter/reboot \
+                         src/vmm_mad/remotes/vcenter/reset \
+                         src/vmm_mad/remotes/vcenter/save \
+                         src/vmm_mad/remotes/vcenter/poll \
+                         src/vmm_mad/remotes/vcenter/shutdown \
+                         src/vmm_mad/remotes/vcenter/vcenter_driver.rb"
 
 #------------------------------------------------------------------------------
 # VMM Driver EC2 scripts, to be installed under $REMOTES_LOCATION/vmm/ec2
@@ -869,6 +896,8 @@ IM_PROBES_XEN4_PROBES_FILES="src/im_mad/remotes/xen-probes.d/xen.rb \
                       src/im_mad/remotes/common.d/collectd-client-shepherd.sh"
 
 IM_PROBES_VMWARE_FILES="src/im_mad/remotes/vmware.d/vmware.rb"
+
+IM_PROBES_VCENTER_FILES="src/im_mad/remotes/vcenter.d/vcenter.rb"
 
 IM_PROBES_EC2_FILES="src/im_mad/remotes/ec2.d/poll"
 
@@ -1150,7 +1179,8 @@ ONEDB_SHARED_MIGRATOR_FILES="src/onedb/shared/2.0_to_2.9.80.rb \
                              src/onedb/shared/4.4.1_to_4.5.80.rb\
                              src/onedb/shared/4.5.80_to_4.6.0.rb"
 
-ONEDB_LOCAL_MIGRATOR_FILES="src/onedb/local/4.5.80_to_4.7.80.rb"
+ONEDB_LOCAL_MIGRATOR_FILES="src/onedb/local/4.5.80_to_4.7.80.rb \
+                            src/onedb/local/4.7.80_to_4.9.80.rb"
 
 #-------------------------------------------------------------------------------
 # Configuration files for OpenNebula, to be installed under $ETC_LOCATION
@@ -1459,7 +1489,8 @@ SUNSTONE_ETC_FILES="src/sunstone/etc/sunstone-server.conf \
 SUNSTONE_ETC_VIEW_FILES="src/sunstone/etc/sunstone-views/admin.yaml \
                     src/sunstone/etc/sunstone-views/user.yaml \
                     src/sunstone/etc/sunstone-views/cloud.yaml \
-                    src/sunstone/etc/sunstone-views/vdcadmin.yaml"
+                    src/sunstone/etc/sunstone-views/vdcadmin.yaml \
+		    src/sunstone/etc/sunstone-views/vcenter.yaml"
 
 SUNSTONE_MODELS_FILES="src/sunstone/models/OpenNebulaJSON.rb \
                        src/sunstone/models/SunstoneServer.rb \
@@ -1516,7 +1547,9 @@ SUNSTONE_PUBLIC_JS_PLUGINS_FILES="\
                         src/sunstone/public/js/plugins/support-tab.js \
                         src/sunstone/public/js/plugins/zones-tab.js"
 
-SUNSTONE_ROUTES_FILES="src/sunstone/routes/oneflow.rb"
+SUNSTONE_ROUTES_FILES="src/sunstone/routes/oneflow.rb \
+  src/sunstone/routes/vcenter.rb \
+  src/sunstone/routes/support.rb"
 
 # begin bower
 
@@ -1539,6 +1572,9 @@ SUNSTONE_PUBLIC_NEW_VENDOR_JGROWL="\
     src/sunstone/public/bower_components/jgrowl/jquery.jgrowl.min.js \
     src/sunstone/public/bower_components/jgrowl/jquery.jgrowl.min.css"
 
+
+SUNSTONE_PUBLIC_NEW_VENDOR_RESUMABLEJS="\
+    src/sunstone/public/bower_components/resumablejs/resumable.js"
 
 SUNSTONE_PUBLIC_NEW_VENDOR_FOUNDATION_DATATABLES="\
     src/sunstone/public/bower_components/foundation-datatables/integration/foundation/dataTables.foundation.js"
@@ -1601,12 +1637,6 @@ src/sunstone/public/vendor/crypto-js/sha1-min.js \
 src/sunstone/public/vendor/crypto-js/core-min.js \
 src/sunstone/public/vendor/crypto-js/enc-base64-min.js \
 src/sunstone/public/vendor/crypto-js/NEW-BSD-LICENSE.txt"
-
-
-SUNSTONE_PUBLIC_VENDOR_FILEUPLOADER="\
-src/sunstone/public/vendor/fileuploader/NOTICE \
-src/sunstone/public/vendor/fileuploader/fileuploader.js"
-
 
 SUNSTONE_PUBLIC_VENDOR_XML2JSON="\
 src/sunstone/public/vendor/xml2json/NOTICE \

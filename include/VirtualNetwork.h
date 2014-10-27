@@ -304,6 +304,12 @@ public:
     int reserve_addr_by_mac(VirtualNetwork *rvnet, unsigned int rsize,
         unsigned int ar_id, const string& mac, string& error_str);
 
+    /**
+     * Returns true if this VNET is a reservation
+     * @return true if this VNET is a reservation
+     */
+    bool is_reservation() const;
+
     // *************************************************************************
     // Formatting & Helper functions
     // *************************************************************************
@@ -363,17 +369,6 @@ public:
      */
     string& to_xml_extended(string& xml, const vector<int>& vms,
         const vector<int>& vnets) const;
-
-    /**
-     *  Replace the template of the virtual network it also updates the BRIDGE,
-     *  PHY_DEV, VLAN_ID and VLAN attributes.
-     *    @param tmpl_str new contents
-     *    @param keep_restricted If true, the restricted attributes of the
-     *    current template will override the new template
-     *    @param error string describing the error if any
-     *    @return 0 on success
-     */
-    int replace_template(const string& tmpl_str, bool keep_restricted, string& error);
 
     /**
      *  Gets a string based attribute (single) from an address range. If the
@@ -487,6 +482,13 @@ private:
      *    @return 0 on success, -1 otherwise
      */
     int from_xml(const string &xml_str);
+
+    /**
+     * Updates the BRIDGE, PHY_DEV, VLAN_ID and VLAN attributes.
+     *    @param error string describing the error if any
+     *    @return 0 on success
+     */
+    int post_update_template(string& error);
 
     //**************************************************************************
     // Constructor

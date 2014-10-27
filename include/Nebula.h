@@ -372,7 +372,7 @@ public:
      */
     static string code_version()
     {
-        return "4.8.0"; // bump version
+        return "4.9.80"; // bump version
     }
 
     /**
@@ -390,7 +390,7 @@ public:
      */
     static string local_db_version()
     {
-        return "4.7.80";
+        return "4.9.80";
     }
 
     /**

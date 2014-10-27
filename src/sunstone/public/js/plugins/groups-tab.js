@@ -448,9 +448,9 @@ var groups_tab = {
           <th>'+tr("ID")+'</th>\
           <th>'+tr("Name")+'</th>\
           <th>'+tr("Users")+'</th>\
-          <th style="width:18%">'+tr("VMs")+'</th>\
-          <th style="width:18%">'+tr("Memory")+'</th>\
-          <th style="width:18%">'+tr("CPU")+'</th>\
+          <th>'+tr("VMs")+'</th>\
+          <th>'+tr("Memory")+'</th>\
+          <th>'+tr("CPU")+'</th>\
         </tr>\
       </thead>\
       <tbody id="tbodygroups">\
@@ -651,6 +651,8 @@ function fromJSONtoProvidersTable(group_info){
 
 function updateGroupInfo(request,group){
     var info = group.GROUP;
+
+    $(".resource-info-header", $("#groups-tab")).html(info.NAME);
 
     var info_tab = {
           title: tr("Info"),
@@ -1411,10 +1413,12 @@ $(document).ready(function(){
     if (Config.isTabEnabled(tab_name)) {
       dataTable_groups = $("#datatable_groups",main_tabs_context).dataTable({
             "bSortClasses" : false,
+            "bAutoWidth": false,
             "bDeferRender": true,
             "aoColumnDefs": [
               { "bSortable": false, "aTargets": ["check",4,5,6] },
               { "sWidth": "35px", "aTargets": [0] },
+              { "sWidth": "150px", "aTargets": [4,5,6] },
               { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
               { "bVisible": false, "aTargets": ['_all']}
           ]

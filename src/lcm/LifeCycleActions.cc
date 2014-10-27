@@ -284,8 +284,6 @@ void  LifeCycleManager::migrate_action(int vid)
 
         vm->set_state(VirtualMachine::BOOT);
 
-        vm->delete_snapshots();
-
         map<string, string> empty;
 
         vm->update_info(0, 0, -1, -1, empty);
@@ -612,6 +610,8 @@ void  LifeCycleManager::restore_action(int vid)
 
         vm->set_stime(the_time);
 
+        vm->set_last_poll(0);
+
         vm->set_running_stime(the_time);
 
         vmpool->update_history(vm);
@@ -745,6 +745,8 @@ void  LifeCycleManager::restart_action(int vid)
             vmpool->update(vm);
 
             vm->set_stime(the_time);
+
+            vm->set_last_poll(0);
 
             vm->set_running_stime(the_time);
 

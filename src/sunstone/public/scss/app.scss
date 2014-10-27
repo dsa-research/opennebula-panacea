@@ -67,27 +67,25 @@
 }
 
 .left-content {
-  padding-top: 31px;
+  padding-top: 40px;
   padding-left: 20px;
 }
 
 .left-header {
-  margin-bottom: 10px !important;
-
-  img  {
-    height: 30px;
-    width: 140px;
-  }
 }
 
 .right-content {
-  padding-top: 20px;
-  padding-left: 30px;
-  padding-right: 20px;
+  padding-top: 10px;
+  padding-left: 50px;
+  padding-right: 50px;
 }
 
 .right-info {
   margin-top: 15px;
+}
+
+#menu {
+  margin-top: 10px;
 }
 
 .log-tab {
@@ -206,7 +204,7 @@ input.search {
     .topTab {
 
         a {
-            color: #555 !important;
+            color: #333 !important;
         }
 
         margin-top: 10px;
@@ -250,8 +248,18 @@ input.search {
     }
 }
 
-.header-title {
-  margin-bottom: 20px;
+.header-row {
+  margin-bottom: 20px !important;
+  margin-top: 25px !important;
+
+  .resource-id {
+    color: #999;
+    display: none;
+  }
+
+  .resource-info-header {
+    color: #777;
+  }
 }
 
 // action block
@@ -272,7 +280,7 @@ select {
   margin-bottom: 5px;
 
   input {
-    margin-top: -10px !important;
+    //margin-top: -10px !important;
   }
 }
 
@@ -329,6 +337,15 @@ select {
 .totals-info {
   span {
     color: #777;
+
+  }
+
+  a {
+    color: #777 !important;
+
+    &:hover {
+      color: #0098c3 !important
+    }
   }
 
   small {
@@ -483,7 +500,7 @@ fieldset {
 
     dd:not(.active) {
       a {
-        color: #999 !important;
+        color: #777 !important;
         background: #fff;
 
         &:hover {
@@ -940,7 +957,7 @@ hr {
 }
 
 .accordion_advanced {
-    margin-bottom: 30px;
+    margin-bottom: 10px;
     &>a {
       padding: 10px 20px;
       font-size: 13px;
@@ -1068,4 +1085,35 @@ hr {
   color: #999;
 }
 
+#li_support-tab {
+  background: #f7f7f7;
+  border-radius: 3px;
+  padding: 5px 0px;
+  margin-top: 30px;
+  //text-align: center !important;
 
+  .support_title {
+    color: #333;
+  }
+  .support_info {
+    margin-top: 10px;
+    width: 100%;
+  }
+  .support_pending {
+    color: #777;
+  }
+  .support_open {
+    color: #777;
+  }
+  .support_button {
+    margin-top: 15px;
+  }
+  .support_connect {
+    margin-top: 10px;
+    width: 100%;
+    color: #777;
+  }
+  .support_connect_button {
+    margin-top: 15px;
+  }
+}

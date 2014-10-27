@@ -28,6 +28,12 @@ class OpenvSwitchVLAN < OpenNebulaNetwork
     def initialize(vm, deploy_id = nil, hypervisor = nil)
         super(vm,XPATH_FILTER,deploy_id,hypervisor)
         @locking = false
+
+        @vm.nics.each do |nic|
+            if nic[:bridge_ovs] && !nic[:bridge_ovs].empty?
+                nic[:bridge] = nic[:bridge_ovs]
+            end
+        end
     end
 
     def activate
@@ -49,7 +55,7 @@ class OpenvSwitchVLAN < OpenNebulaNetwork
             end
 
             # Prevent ARP Cache Poisoning
-            arp_cache_poisoning if CONF[:arp_cache_poisoning]
+            arp_cache_poisoning if CONF[:arp_cache_poisoning] && @nic[:ip]
 
             # Prevent Mac-spoofing
             mac_spoofing
